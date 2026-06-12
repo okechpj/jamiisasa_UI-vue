@@ -5,6 +5,7 @@ dist-ssr
 .DS_Store
 
 # Local env overrides (keep .env.example committed)
+.env 
 .env.local
 .env.*.local
 

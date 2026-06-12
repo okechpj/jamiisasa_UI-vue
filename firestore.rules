@@ -1,0 +1,43 @@
+rules_version = '2';
+
+// Jamii Sasa chat security rules.
+//
+// Identity: the browser signs in with a Firebase *custom token* minted by the
+// Go backend (uid == our Supabase user id). Rooms carry a `participants` array
+// [customer_id, provider_id]. Only participants may read a room and its
+// messages, and a participant may only create *text* messages authored as
+// themselves. Rooms, quote cards and system messages are written by the
+// backend via the Admin SDK, which bypasses these rules.
+//
+// Deploy:  firebase deploy --only firestore:rules
+// (or paste into Firebase console → Firestore → Rules)
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    match /chat_rooms/{roomId} {
+      allow read: if request.auth != null
+        && request.auth.uid in resource.data.participants;
+
+      // Rooms are created/owned by the backend only.
+      allow write: if false;
+
+      match /messages/{messageId} {
+        function roomParticipants() {
+          return get(/databases/$(database)/documents/chat_rooms/$(roomId)).data.participants;
+        }
+
+        allow read: if request.auth != null
+          && request.auth.uid in roomParticipants();
+
+        allow create: if request.auth != null
+          && request.auth.uid in roomParticipants()
+          && request.resource.data.sender_id == request.auth.uid
+          && request.resource.data.type == 'text';
+
+        // Messages are immutable from the client.
+        allow update, delete: if false;
+      }
+    }
+  }
+}

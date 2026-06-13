@@ -1,4 +1,4 @@
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { defineStore } from 'pinia'
 
 import * as postApi from '@/api/post.api'
@@ -8,6 +8,7 @@ import * as connectionApi from '@/api/connection.api'
 import { useAuthStore } from '@/stores/auth.store'
 import { relativeTime } from '@/lib/time'
 import { extractError } from '@/lib/errors'
+import { resolveMediaUrl } from '@/lib/storage'
 
 /*
  * feed.store — the social feed: posts, optimistic likes, comments, post
@@ -66,9 +67,10 @@ export const useFeedStore = defineStore('feed', () => {
       id: toText(raw.id),
       authorId,
       authorName: fullName || toText(author.username) || `user-${authorId.slice(0, 6)}`,
+      authorAvatar: resolveMediaUrl(author.profile_picture_url || author.avatar_url || author.profile_picture),
       authorUsername: toText(author.username),
       content: toText(raw.content),
-      mediaUrl: toText(raw.media_url),
+      mediaUrl: resolveMediaUrl(raw.media_url),
       mediaType: toText(raw.media_type),
       category: toText(raw.category) || 'JamiiLiza',
       likes: toNum(raw.likes_count),
@@ -78,6 +80,35 @@ export const useFeedStore = defineStore('feed', () => {
       timeAgo: relativeTime(raw.created_at),
       connectStatus: deriveConnectStatus(authorId, auth.userId, statusByUser.value),
     }
+  }
+
+  // Keep posts in sync when the current user's profile picture changes.
+  watch(
+    () => auth.user && auth.user.profile_picture_url,
+    (newUrl) => {
+      if (!newUrl) return
+      const resolved = resolveMediaUrl(newUrl)
+      // Debug: log avatar updates so developers can verify the resolved R2 URL
+      // appears and is propagated into post data during testing.
+      try {
+        // eslint-disable-next-line no-console
+        console.debug('[feed.store] profile_picture_url changed:', newUrl, 'resolved:', resolved)
+      } catch (e) {}
+      allPosts.value = allPosts.value.map((p) => {
+        if (p.authorId === auth.userId) return { ...p, authorAvatar: resolved }
+        return p
+      })
+    },
+  )
+
+  // keep posts in sync when the current user's profile (avatar) changes
+  // so that the feed reflects new profile pictures immediately.
+  if (auth) {
+    // watch is a composition API method only in components; use a simple
+    // reactive getter via computed effect by leveraging auth.user reference
+    // updates elsewhere in the app will cause this code path to run when
+    // loadFeed is called or auth.fetchMe is invoked; to be safe, expose a
+    // helper to refresh post avatars after profile update.
   }
 
   // --- Getters -------------------------------------------------------------
@@ -164,6 +195,7 @@ export const useFeedStore = defineStore('feed', () => {
       const mapped = mapPost(created)
       mapped.authorName = auth.displayName
       mapped.authorUsername = auth.user ? toText(auth.user.username) : mapped.authorUsername
+      mapped.authorAvatar = resolveMediaUrl(auth.user?.profile_picture_url)
       mapped.connectStatus = 'self'
       allPosts.value = [mapped, ...allPosts.value]
       return true
@@ -225,6 +257,7 @@ export const useFeedStore = defineStore('feed', () => {
       postId: toText(raw.post_id),
       authorId: toText(raw.user_id),
       authorName: fullName || toText(author.username) || `user-${toText(raw.user_id).slice(0, 6)}`,
+      authorAvatar: resolveMediaUrl(author.profile_picture_url || author.avatar_url || author.profile_picture),
       content: toText(raw.content),
       timeAgo: relativeTime(raw.created_at),
     }

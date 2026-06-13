@@ -14,8 +14,10 @@ const price = computed(() => formatPriceRange(props.service.priceMin, props.serv
 
 <template>
   <article class="flex flex-col overflow-hidden rounded-card border border-line bg-base">
-    <!-- Image placeholder (services have no image field on the backend) -->
-    <div class="grid aspect-[16/10] place-items-center bg-gradient-to-br from-brand/15 to-brand-light/15">
+    <div v-if="service.imageSrc" class="aspect-[16/10] overflow-hidden bg-surface">
+      <img :src="service.imageSrc" :alt="service.serviceName || 'Service'" class="h-full w-full object-cover" loading="lazy" />
+    </div>
+    <div v-else class="grid aspect-[16/10] place-items-center bg-gradient-to-br from-brand/15 to-brand-light/15">
       <Sparkles class="h-8 w-8 text-brand/40" />
     </div>
 

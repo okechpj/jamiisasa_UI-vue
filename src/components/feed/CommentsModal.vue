@@ -53,7 +53,7 @@ async function submit() {
       />
 
       <div v-for="c in comments" v-else :key="c.id" class="flex gap-3">
-        <BaseAvatar :name="c.authorName" size="sm" />
+        <BaseAvatar :name="c.authorName" :src="c.authorAvatar" size="sm" />
         <div class="min-w-0 flex-1">
           <div class="flex items-center gap-2">
             <span class="text-sm font-semibold text-ink">{{ c.authorName }}</span>

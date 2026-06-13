@@ -42,7 +42,7 @@ const featured = computed(() => providers.value.slice(0, 8))
         class="flex w-60 shrink-0 flex-col rounded-card border border-line bg-base p-4 transition-shadow hover:shadow-sm"
       >
         <div class="flex items-center gap-3">
-          <BaseAvatar :name="p.businessName" size="md" />
+          <BaseAvatar :name="p.businessName" :src="p.avatar" size="md" />
           <div class="min-w-0 flex-1">
             <div class="flex items-center gap-1">
               <h3 class="truncate text-sm font-bold text-ink">{{ p.businessName || 'Provider' }}</h3>

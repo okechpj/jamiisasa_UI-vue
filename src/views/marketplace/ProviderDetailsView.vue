@@ -69,7 +69,7 @@ const displayName = computed(() => currentProvider.value?.businessName || 'Provi
       <!-- Header -->
       <div class="rounded-card border border-line bg-base p-5 sm:p-6">
         <div class="flex items-start gap-4">
-          <BaseAvatar :name="displayName" size="lg" />
+          <BaseAvatar :name="displayName" :src="currentProvider.avatar" size="lg" />
           <div class="min-w-0 flex-1">
             <div class="flex items-center gap-2">
               <h1 class="truncate text-xl font-bold text-ink">{{ displayName }}</h1>

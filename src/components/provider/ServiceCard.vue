@@ -18,6 +18,9 @@ const price = computed(() => formatPriceRange(props.service.priceMin, props.serv
 
 <template>
   <article class="rounded-card border border-line bg-base p-4">
+    <div v-if="service.imageSrc" class="mb-3 overflow-hidden rounded-lg">
+      <img :src="service.imageSrc" :alt="service.serviceName || 'Service'" class="h-32 w-full object-cover" loading="lazy" />
+    </div>
     <div class="flex items-start justify-between gap-3">
       <div class="min-w-0">
         <h3 class="truncate text-sm font-bold text-ink">{{ service.serviceName || 'Untitled service' }}</h3>

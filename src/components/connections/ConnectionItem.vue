@@ -18,7 +18,7 @@ defineEmits(['accept', 'reject'])
 <template>
   <div class="flex items-center gap-3 rounded-card border border-line bg-base p-3 sm:p-4">
     <RouterLink :to="{ name: 'user-profile', params: { id: connection.otherUserId } }">
-      <BaseAvatar :name="connection.name" size="md" />
+      <BaseAvatar :name="connection.name" :src="connection.avatar" size="md" />
     </RouterLink>
 
     <div class="min-w-0 flex-1">

@@ -1,9 +1,11 @@
 <script setup>
 import { computed } from 'vue'
+import { RouterLink } from 'vue-router'
 
 import BaseAvatar from '@/components/ui/BaseAvatar.vue'
 import BaseBadge from '@/components/ui/BaseBadge.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
+import { resolveMediaUrl } from '@/lib/storage'
 
 const props = defineProps({
   user: { type: Object, default: () => ({}) },
@@ -21,6 +23,8 @@ const displayName = computed(() => {
   return full || u.username || 'User'
 })
 
+const avatarSrc = computed(() => resolveMediaUrl(props.user?.profile_picture_url))
+
 const connectLabel = computed(() => {
   if (props.connectStatus === 'connected') return 'Connected'
   if (props.connectStatus === 'pending' || props.connectStatus === 'sending') return 'Pending'
@@ -31,7 +35,7 @@ const connectLabel = computed(() => {
 <template>
   <div class="rounded-card border border-line bg-base p-5 sm:p-6">
     <div class="flex flex-col items-center text-center sm:flex-row sm:items-center sm:gap-5 sm:text-left">
-      <BaseAvatar :name="displayName" :src="user.profile_picture_url" size="xl" />
+      <BaseAvatar :name="displayName" :src="avatarSrc" size="xl" />
 
       <div class="mt-3 min-w-0 flex-1 sm:mt-0">
         <div class="flex flex-col items-center gap-1.5 sm:flex-row sm:items-center">
@@ -42,8 +46,12 @@ const connectLabel = computed(() => {
         <p v-if="isSelf && user.email" class="text-sm text-muted">{{ user.email }}</p>
       </div>
 
-      <div v-if="!isSelf" class="mt-4 sm:mt-0">
+      <div class="mt-4 flex gap-2 sm:mt-0">
+        <RouterLink v-if="isSelf" to="/profile/edit">
+          <BaseButton variant="outline" size="sm">Edit profile</BaseButton>
+        </RouterLink>
         <BaseButton
+          v-if="!isSelf"
           :variant="connectStatus === 'none' ? 'primary' : 'outline'"
           :disabled="connectStatus !== 'none'"
           :loading="connectStatus === 'sending'"
@@ -55,14 +63,20 @@ const connectLabel = computed(() => {
     </div>
 
     <!-- Stats -->
-    <div class="mt-5 flex gap-6 border-t border-line pt-4">
-      <div>
-        <span class="text-lg font-bold text-ink">{{ postCount }}</span>
-        <span class="ml-1 text-sm text-muted">Posts</span>
+    <div class="mt-5 flex items-center justify-between gap-6 border-t border-line pt-4">
+      <div class="flex gap-6">
+        <div>
+          <span class="text-lg font-bold text-ink">{{ postCount }}</span>
+          <span class="ml-1 text-sm text-muted">Posts</span>
+        </div>
+        <div v-if="connectionCount !== null">
+          <span class="text-lg font-bold text-ink">{{ connectionCount }}</span>
+          <span class="ml-1 text-sm text-muted">Connections</span>
+        </div>
       </div>
-      <div v-if="connectionCount !== null">
-        <span class="text-lg font-bold text-ink">{{ connectionCount }}</span>
-        <span class="ml-1 text-sm text-muted">Connections</span>
+
+      <div>
+        <slot name="stats-right" />
       </div>
     </div>
   </div>

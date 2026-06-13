@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
-import { AlertTriangle, FileText } from 'lucide-vue-next'
+import { AlertTriangle, Briefcase, CalendarClock, Inbox, Wallet } from 'lucide-vue-next'
+import { RouterLink, useRouter } from 'vue-router'
 
 import * as authApi from '@/api/auth.api'
 import * as postApi from '@/api/post.api'
@@ -12,14 +13,15 @@ import { useConnectionStore } from '@/stores/connection.store'
 import { useToast } from '@/composables/useToast'
 import { relativeTime } from '@/lib/time'
 import { extractError } from '@/lib/errors'
+import { resolveMediaUrl } from '@/lib/storage'
 
 import ProfileHeader from '@/components/profile/ProfileHeader.vue'
-import PostCard from '@/components/feed/PostCard.vue'
-import PostCardSkeleton from '@/components/feed/PostCardSkeleton.vue'
+import ProfilePostsPanel from '@/components/profile/ProfilePostsPanel.vue'
 import CommentsModal from '@/components/feed/CommentsModal.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseSkeleton from '@/components/ui/BaseSkeleton.vue'
+import MyBookingsView from '@/views/bookings/MyBookingsView.vue'
 
 const props = defineProps({
   id: { type: String, default: '' },
@@ -28,6 +30,7 @@ const props = defineProps({
 const auth = useAuthStore()
 const connections = useConnectionStore()
 const toast = useToast()
+const router = useRouter()
 
 const toText = (v) => (typeof v === 'string' ? v : '')
 
@@ -47,6 +50,33 @@ const profileName = computed(() => {
   return [u.first_name, u.last_name].filter(Boolean).join(' ').trim() || toText(u.username) || 'User'
 })
 const connectionCount = computed(() => (isSelf.value ? connections.connectionCount : null))
+const showMobileTabs = computed(() => isSelf.value)
+const showProviderTab = computed(() => isSelf.value && auth.role === 'provider')
+
+const mobileTabs = computed(() => {
+  const tabs = [
+    { key: 'posts', label: 'My Posts' },
+    { key: 'orders', label: 'My Orders' },
+  ]
+
+  if (showProviderTab.value) {
+    tabs.push({ key: 'provider', label: 'Provider' })
+  }
+
+  return tabs
+})
+
+const activeMobileTab = ref('posts')
+
+watch(
+  () => mobileTabs.value.map((tab) => tab.key).join('|'),
+  () => {
+    if (!mobileTabs.value.some((tab) => tab.key === activeMobileTab.value)) {
+      activeMobileTab.value = 'posts'
+    }
+  },
+  { immediate: true },
+)
 
 function mapPost(raw = {}) {
   return {
@@ -54,8 +84,9 @@ function mapPost(raw = {}) {
     authorId: toText(raw.user_id),
     authorName: profileName.value,
     authorUsername: toText(user.value && user.value.username),
+    authorAvatar: resolveMediaUrl((raw.author && raw.author.profile_picture_url) || (user.value && user.value.profile_picture_url)),
     content: toText(raw.content),
-    mediaUrl: toText(raw.media_url),
+    mediaUrl: resolveMediaUrl(raw.media_url),
     mediaType: toText(raw.media_type),
     category: toText(raw.category) || 'JamiiLiza',
     likes: typeof raw.likes_count === 'number' ? raw.likes_count : 0,
@@ -133,6 +164,16 @@ async function onConnect() {
   }
 }
 
+function onLogout() {
+  try {
+    auth.logout()
+    toast.success('Logged out.')
+    router.push('/')
+  } catch (e) {
+    toast.error('Could not log out.')
+  }
+}
+
 // --- Post interactions ---------------------------------------------------
 function toggleLike(postId) {
   const t = posts.value.find((p) => p.id === postId)
@@ -161,6 +202,7 @@ function mapComment(raw = {}) {
   return {
     id: toText(raw.id),
     authorName: full || toText(a.username) || `user-${toText(raw.user_id).slice(0, 6)}`,
+    authorAvatar: resolveMediaUrl(a.profile_picture_url),
     content: toText(raw.content),
     timeAgo: relativeTime(raw.created_at),
   }
@@ -192,6 +234,39 @@ async function addComment(body, done) {
     done(false)
   }
 }
+
+const providerQuickLinks = [
+  {
+    name: 'provider-profile',
+    title: 'Provider Profile',
+    description: 'Update your business profile and visibility.',
+    icon: Briefcase,
+  },
+  {
+    name: 'provider-services',
+    title: 'Services Management',
+    description: 'Create, edit, and remove your service listings.',
+    icon: Briefcase,
+  },
+  {
+    name: 'provider-availability',
+    title: 'Availability Management',
+    description: 'Manage your slots and working schedule.',
+    icon: CalendarClock,
+  },
+  {
+    name: 'provider-bookings',
+    title: 'Incoming Service Requests',
+    description: 'Review and respond to customer orders.',
+    icon: Inbox,
+  },
+  {
+    name: 'provider-earnings',
+    title: 'Provider Earnings Dashboard',
+    description: 'Track completed orders and payouts.',
+    icon: Wallet,
+  },
+]
 </script>
 
 <template>
@@ -220,28 +295,82 @@ async function addComment(body, done) {
         :connection-count="connectionCount"
         :connect-status="connectStatus"
         @connect="onConnect"
-      />
+      >
+        <template #stats-right>
+          <div v-if="isSelf" class="md:hidden">
+            <BaseButton variant="ghost" @click="onLogout">Log out</BaseButton>
+          </div>
+        </template>
+      </ProfileHeader>
 
-      <!-- Posts -->
-      <h2 class="mb-3 mt-6 text-sm font-bold text-ink">Posts</h2>
+      <!-- Mobile Facebook-style tabs -->
+      <div v-if="showMobileTabs" class="mt-5 md:hidden">
+        <div class="sticky top-14 z-10 -mx-4 border-b border-line bg-surface/95 px-4 backdrop-blur">
+          <div class="-mx-1 flex gap-1 overflow-x-auto px-1 scrollbar-none">
+            <button
+              v-for="tab in mobileTabs"
+              :key="tab.key"
+              type="button"
+              class="whitespace-nowrap border-b-2 px-4 py-3 text-sm font-semibold transition-colors"
+              :class="activeMobileTab === tab.key ? 'border-brand text-brand' : 'border-transparent text-muted hover:text-ink'"
+              @click="activeMobileTab = tab.key"
+            >
+              {{ tab.label }}
+            </button>
+          </div>
+        </div>
 
-      <div v-if="postsLoading" class="space-y-4">
-        <PostCardSkeleton v-for="i in 2" :key="i" />
+        <div class="pt-4">
+          <div v-if="isSelf" class="mb-3 md:hidden flex justify-end px-4">
+            <BaseButton variant="ghost" @click="onLogout">Log out</BaseButton>
+          </div>
+          <section v-if="activeMobileTab === 'posts'">
+            <ProfilePostsPanel
+              :posts="posts"
+              :loading="postsLoading"
+              :is-self="isSelf"
+              @like="toggleLike"
+              @comment="openComments"
+            />
+          </section>
+
+          <section v-else-if="activeMobileTab === 'orders'">
+            <MyBookingsView />
+          </section>
+
+          <section v-else class="space-y-4">
+            <div class="rounded-card border border-line bg-base p-4">
+              <h2 class="text-sm font-bold text-ink">Provider dashboard</h2>
+              <p class="mt-1 text-sm text-muted">Jump into the tools you already use on desktop.</p>
+            </div>
+
+            <div class="grid gap-3">
+              <RouterLink
+                v-for="item in providerQuickLinks"
+                :key="item.name"
+                :to="{ name: item.name }"
+                class="flex items-center gap-3 rounded-card border border-line bg-base p-4 transition-colors hover:bg-surface"
+              >
+                <div class="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-brand/10 text-brand">
+                  <component :is="item.icon" class="h-5 w-5" />
+                </div>
+                <div class="min-w-0 flex-1">
+                  <p class="text-sm font-semibold text-ink">{{ item.title }}</p>
+                  <p class="mt-0.5 text-xs text-muted">{{ item.description }}</p>
+                </div>
+              </RouterLink>
+            </div>
+          </section>
+        </div>
       </div>
 
-      <EmptyState
-        v-else-if="!posts.length"
-        :title="isSelf ? 'You haven\'t posted yet' : 'No posts yet'"
-        :description="isSelf ? 'Share something from the feed.' : ''"
-      >
-        <template #icon><FileText class="h-6 w-6" /></template>
-      </EmptyState>
-
-      <div v-else class="space-y-4">
-        <PostCard
-          v-for="post in posts"
-          :key="post.id"
-          :post="post"
+      <!-- Desktop posts (unchanged) -->
+      <div class="hidden md:block">
+        <h2 class="mb-3 mt-6 text-sm font-bold text-ink">Posts</h2>
+        <ProfilePostsPanel
+          :posts="posts"
+          :loading="postsLoading"
+          :is-self="isSelf"
           @like="toggleLike"
           @comment="openComments"
         />

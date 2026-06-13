@@ -175,7 +175,8 @@ async function handleConnect(postId) {
     </EmptyState>
 
     <!-- Feed -->
-    <div v-else class="space-y-4">
+    <!-- Mobile: PostCard renders its own subtle divider; desktop keeps spaced cards. -->
+    <div v-else class="space-y-0 sm:space-y-4">
       <PostCard
         v-for="post in visiblePosts"
         :key="post.id"

@@ -3,8 +3,8 @@ import { ref, watch } from 'vue'
 
 import BaseModal from '@/components/ui/BaseModal.vue'
 import BaseTextarea from '@/components/ui/BaseTextarea.vue'
-import BaseInput from '@/components/ui/BaseInput.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
+import ImageUpload from '@/components/ui/ImageUpload.vue'
 
 const props = defineProps({
   open: { type: Boolean, default: false },
@@ -15,28 +15,46 @@ const props = defineProps({
 const emit = defineEmits(['update:open', 'submit'])
 
 const content = ref('')
-const mediaUrl = ref('')
 const category = ref('JamiiLiza')
+const fileKey = ref(null)
+const uploading = ref(false)
 
-// Pick a sensible default category (skip the "All" filter pseudo-category).
 watch(
   () => props.open,
   (isOpen) => {
     if (isOpen) {
       content.value = ''
-      mediaUrl.value = ''
       category.value = props.categories.find((c) => c !== 'All') || 'JamiiLiza'
+      fileKey.value = null
+      uploading.value = false
     }
   },
 )
+
+function handleUploadComplete({ file_key }) {
+  fileKey.value = file_key
+  uploading.value = false
+}
+
+function handleUploadStart() {
+  uploading.value = true
+}
+
+function handleUploadError() {
+  uploading.value = false
+}
+
+function handleRemove() {
+  fileKey.value = null
+}
 
 function submit() {
   if (!content.value.trim()) return
   emit('submit', {
     content: content.value,
     category: category.value,
-    mediaUrl: mediaUrl.value.trim(),
-    mediaType: mediaUrl.value.trim() ? 'image' : '',
+    mediaUrl: fileKey.value || '',
+    mediaType: fileKey.value ? 'image' : '',
   })
 }
 </script>
@@ -51,7 +69,14 @@ function submit() {
         :maxlength="1000"
       />
 
-      <BaseInput v-model="mediaUrl" label="Image URL (optional)" placeholder="https://…" />
+      <ImageUpload
+        entity="feed_images"
+        label="Add Image (optional)"
+        @upload-complete="handleUploadComplete"
+        @upload-start="handleUploadStart"
+        @upload-error="handleUploadError"
+        @remove="handleRemove"
+      />
 
       <div>
         <label class="mb-1.5 block text-sm font-medium text-ink">Category</label>
@@ -73,7 +98,7 @@ function submit() {
     <template #footer>
       <div class="flex justify-end gap-2">
         <BaseButton variant="ghost" @click="emit('update:open', false)">Cancel</BaseButton>
-        <BaseButton :loading="submitting" :disabled="!content.trim()" @click="submit">Post</BaseButton>
+        <BaseButton :loading="submitting || uploading" :disabled="!content.trim() || uploading" @click="submit">Post</BaseButton>
       </div>
     </template>
   </BaseModal>

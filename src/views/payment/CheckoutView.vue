@@ -21,6 +21,7 @@ const toast = useToast()
 
 const booking = ref(null)
 const quote = ref(null)
+const payment = ref(null)
 const services = ref([])
 const loading = ref(true)
 const loadError = ref('')
@@ -34,6 +35,17 @@ const amount = computed(() => {
   if (quote.value) return Number(quote.value.amount) || 0
   return booking.value && booking.value.amount != null ? booking.value.amount : 0
 })
+
+const platformFee = computed(() => {
+  if (payment.value) return Number(payment.value.platform_fee_amount) || 0
+  return amount.value * 0.20 // Calculate 20% if payment not yet created
+})
+
+const providerEarnings = computed(() => {
+  if (payment.value) return Number(payment.value.provider_earnings) || 0
+  return amount.value - platformFee.value
+})
+
 const canPay = computed(
   () => booking.value && booking.value.acceptedQuoteId && booking.value.status === 'completed_unpaid',
 )
@@ -81,6 +93,7 @@ function startPolling() {
   pollTimer = setInterval(async () => {
     try {
       const p = await getPaymentStatus(props.bookingId)
+      payment.value = p // Store payment data
       if (p.status === 'success') {
         payState.value = 'success'
         stopPolling()
@@ -160,7 +173,15 @@ onBeforeUnmount(stopPolling)
         </template>
       </div>
 
-      <PaymentCard v-else :amount="amount" :state="payState" :error="payError" @pay="onPay" />
+      <PaymentCard 
+        v-else 
+        :amount="amount" 
+        :platform-fee="platformFee"
+        :provider-earnings="providerEarnings"
+        :state="payState" 
+        :error="payError" 
+        @pay="onPay" 
+      />
     </div>
   </section>
 </template>

@@ -13,6 +13,8 @@ import { formatKES } from '@/lib/marketplace'
  */
 const props = defineProps({
   amount: { type: Number, default: 0 },
+  platformFee: { type: Number, default: 0 },
+  providerEarnings: { type: Number, default: 0 },
   // idle | sending | waiting | success | failed
   state: { type: String, default: 'idle' },
   error: { type: String, default: '' },
@@ -51,8 +53,24 @@ function submit() {
 
 <template>
   <div class="rounded-card border border-line bg-base p-5">
-    <p class="text-xs font-medium uppercase tracking-wide text-muted">Amount due</p>
-    <p class="mt-1 text-3xl font-extrabold text-ink">{{ formatKES(amount) }}</p>
+    <!-- Payment Breakdown -->
+    <div class="space-y-2">
+      <div class="flex items-center justify-between">
+        <p class="text-xs font-medium uppercase tracking-wide text-muted">Total Amount</p>
+        <p class="text-lg font-bold text-ink">{{ formatKES(amount) }}</p>
+      </div>
+      
+      <div v-if="platformFee > 0" class="space-y-1.5 rounded-card bg-surface px-3 py-2">
+        <div class="flex items-center justify-between text-xs">
+          <span class="text-muted">Platform Fee (20%)</span>
+          <span class="font-semibold text-danger">- {{ formatKES(platformFee) }}</span>
+        </div>
+        <div class="flex items-center justify-between border-t border-line pt-1.5">
+          <span class="text-muted">Provider Receives</span>
+          <span class="font-bold text-success">{{ formatKES(providerEarnings) }}</span>
+        </div>
+      </div>
+    </div>
 
     <!-- Success -->
     <div v-if="state === 'success'" class="mt-5 flex flex-col items-center gap-1 text-center">

@@ -5,10 +5,11 @@ import BaseModal from '@/components/ui/BaseModal.vue'
 import BaseInput from '@/components/ui/BaseInput.vue'
 import BaseTextarea from '@/components/ui/BaseTextarea.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
+import ImageUpload from '@/components/ui/ImageUpload.vue'
 
 const props = defineProps({
   open: { type: Boolean, default: false },
-  service: { type: Object, default: null }, // editing when set
+  service: { type: Object, default: null },
   saving: { type: Boolean, default: false },
 })
 
@@ -20,8 +21,10 @@ const form = reactive({
   description: '',
   priceMin: '',
   priceMax: '',
+  imageUrl: '',
 })
 const error = ref('')
+const uploading = ref(false)
 
 const isEdit = computed(() => Boolean(props.service))
 
@@ -30,14 +33,33 @@ watch(
   (isOpen) => {
     if (!isOpen) return
     error.value = ''
+    uploading.value = false
     const s = props.service
     form.serviceName = s?.serviceName || ''
     form.serviceCategory = s?.serviceCategory || ''
     form.description = s?.description || ''
     form.priceMin = s ? String(s.priceMin ?? '') : ''
     form.priceMax = s ? String(s.priceMax ?? '') : ''
+    form.imageUrl = s?.imageUrl || ''
   },
 )
+
+function handleUploadComplete({ file_key }) {
+  form.imageUrl = file_key
+  uploading.value = false
+}
+
+function handleUploadStart() {
+  uploading.value = true
+}
+
+function handleUploadError() {
+  uploading.value = false
+}
+
+function handleRemove() {
+  form.imageUrl = ''
+}
 
 function submit() {
   error.value = ''
@@ -61,6 +83,7 @@ function submit() {
     description: form.description.trim(),
     priceMin: min,
     priceMax: max,
+    imageUrl: form.imageUrl,
   })
 }
 </script>
@@ -75,12 +98,21 @@ function submit() {
         <BaseInput v-model="form.priceMin" label="Min price (KES)" type="number" />
         <BaseInput v-model="form.priceMax" label="Max price (KES)" type="number" :error="error" />
       </div>
+      <ImageUpload
+        entity="service_images"
+        label="Service Image (optional)"
+        :initial-url="form.imageUrl"
+        @upload-complete="handleUploadComplete"
+        @upload-start="handleUploadStart"
+        @upload-error="handleUploadError"
+        @remove="handleRemove"
+      />
     </div>
 
     <template #footer>
       <div class="flex justify-end gap-2">
         <BaseButton variant="ghost" @click="emit('update:open', false)">Cancel</BaseButton>
-        <BaseButton :loading="saving" @click="submit">{{ isEdit ? 'Save' : 'Add service' }}</BaseButton>
+        <BaseButton :loading="saving || uploading" :disabled="uploading" @click="submit">{{ isEdit ? 'Save' : 'Add service' }}</BaseButton>
       </div>
     </template>
   </BaseModal>

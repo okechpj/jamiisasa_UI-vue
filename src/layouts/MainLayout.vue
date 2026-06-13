@@ -1,10 +1,11 @@
 <script setup>
 import { computed } from 'vue'
 import { RouterView, RouterLink, useRoute, useRouter } from 'vue-router'
-import { Compass, Users, UserPlus, User, Plus, LogOut, Store, Briefcase, CalendarClock, IdCard, CalendarCheck, Inbox } from 'lucide-vue-next'
+import { Compass, Users, UserPlus, User, Plus, LogOut, Store, Briefcase, CalendarClock, CalendarCheck, IdCard, Inbox, Wallet } from 'lucide-vue-next'
 
 import { useAuthStore } from '@/stores/auth.store'
 import BaseAvatar from '@/components/ui/BaseAvatar.vue'
+import { resolveMediaUrl } from '@/lib/storage'
 
 const route = useRoute()
 const router = useRouter()
@@ -33,6 +34,7 @@ const providerNav = [
   { name: 'provider-services', label: 'My Services', icon: Briefcase },
   { name: 'provider-availability', label: 'My Availability', icon: CalendarClock },
   { name: 'provider-bookings', label: 'Bookings', icon: Inbox },
+  { name: 'provider-earnings', label: 'Earnings', icon: Wallet },
 ]
 
 const activeName = computed(() => route.name)
@@ -54,18 +56,6 @@ function logout() {
     <!-- Mobile top app bar -->
     <header class="sticky top-0 z-20 flex items-center justify-between border-b border-line bg-base/95 px-4 py-3 backdrop-blur md:hidden">
       <RouterLink :to="{ name: 'feed' }" class="text-lg font-bold tracking-tight text-brand">Jamii Sasa</RouterLink>
-      <div class="flex items-center gap-1">
-        <RouterLink
-          :to="{ name: 'my-bookings' }"
-          aria-label="My bookings"
-          class="grid h-9 w-9 place-items-center rounded-full text-muted hover:bg-surface hover:text-ink"
-        >
-          <CalendarCheck class="h-5 w-5" />
-        </RouterLink>
-        <RouterLink :to="{ name: 'profile' }">
-          <BaseAvatar :name="auth.displayName" size="sm" />
-        </RouterLink>
-      </div>
     </header>
 
     <div class="mx-auto flex w-full max-w-6xl gap-6 px-4 lg:px-6">
@@ -107,7 +97,7 @@ function logout() {
         <!-- Current user + logout -->
         <div class="mt-2 border-t border-line pt-3">
           <RouterLink :to="{ name: 'profile' }" class="flex items-center gap-3 rounded-xl px-2 py-2 transition-colors hover:bg-base">
-            <BaseAvatar :name="auth.displayName" size="sm" />
+            <BaseAvatar :name="auth.displayName" :src="resolveMediaUrl(auth.user?.profile_picture_url)" size="sm" />
             <span class="min-w-0 flex-1 truncate text-sm font-semibold text-ink">{{ auth.displayName }}</span>
           </RouterLink>
           <button

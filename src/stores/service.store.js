@@ -4,6 +4,7 @@ import { defineStore } from 'pinia'
 import * as serviceApi from '@/api/service.api'
 import * as providerApi from '@/api/provider.api'
 import { extractError } from '@/lib/errors'
+import { resolveMediaUrl } from '@/lib/storage'
 
 const toText = (v) => (typeof v === 'string' ? v : '')
 const toNum = (v) => (typeof v === 'number' && !Number.isNaN(v) ? v : Number(v) || 0)
@@ -17,6 +18,8 @@ function mapListing(raw) {
     description: toText(raw.description),
     priceMin: toNum(raw.price_min),
     priceMax: toNum(raw.price_max),
+    imageUrl: toText(raw.image_url),
+    imageSrc: resolveMediaUrl(raw.image_url),
   }
 }
 
@@ -27,6 +30,7 @@ function toPayload(form) {
     description: toText(form.description),
     price_min: toNum(form.priceMin),
     price_max: toNum(form.priceMax),
+    image_url: toText(form.imageUrl),
   }
 }
 

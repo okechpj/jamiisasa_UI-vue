@@ -1,10 +1,11 @@
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { defineStore } from 'pinia'
 
 import * as connectionApi from '@/api/connection.api'
 import * as authApi from '@/api/auth.api'
 import { useAuthStore } from '@/stores/auth.store'
 import { extractError } from '@/lib/errors'
+import { resolveMediaUrl } from '@/lib/storage'
 
 /*
  * connection.store — the user's accepted connections and incoming pending
@@ -61,6 +62,7 @@ export const useConnectionStore = defineStore('connection', () => {
         otherUserId: id,
         name: name || toText(u.username) || `user-${id.slice(0, 6)}`,
         username: toText(u.username),
+        avatar: resolveMediaUrl(u.profile_picture_url || u.avatar_url || u.profile_picture),
       }
     })
   }
@@ -77,6 +79,25 @@ export const useConnectionStore = defineStore('connection', () => {
       loading.value = false
     }
   }
+
+  // Watch for auth profile picture changes and sync avatars across connections.
+  watch(
+    () => auth.user && auth.user.profile_picture_url,
+    (newUrl) => {
+      if (!newUrl) return
+      const resolved = resolveMediaUrl(newUrl)
+      // Update accepted connections if the current user is one of the parties (unlikely for self, but safe).
+      accepted.value = accepted.value.map((conn) => {
+        if (conn.otherUserId === auth.userId) return { ...conn, avatar: resolved }
+        return conn
+      })
+      // Same for pending connections.
+      pending.value = pending.value.map((conn) => {
+        if (conn.otherUserId === auth.userId) return { ...conn, avatar: resolved }
+        return conn
+      })
+    },
+  )
 
   async function fetchPending() {
     error.value = ''

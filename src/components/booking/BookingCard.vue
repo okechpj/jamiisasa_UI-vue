@@ -26,7 +26,7 @@ const canCancel = computed(
 <template>
   <article class="rounded-card border border-line bg-base p-4">
     <div class="flex items-start gap-3">
-      <BaseAvatar :name="booking.counterpartyName" size="md" />
+      <BaseAvatar :name="booking.counterpartyName" :src="booking.counterpartyAvatar" size="md" />
       <div class="min-w-0 flex-1">
         <h3 class="truncate text-sm font-bold text-ink">{{ booking.serviceName }}</h3>
         <p class="truncate text-xs text-muted">{{ booking.counterpartyName }}</p>

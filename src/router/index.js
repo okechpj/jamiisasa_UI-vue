@@ -25,6 +25,11 @@ const routes = [
         component: () => import('@/views/profile/ProfileView.vue'),
       },
       {
+        path: 'profile/edit',
+        name: 'edit-profile',
+        component: () => import('@/views/profile/EditProfileView.vue'),
+      },
+      {
         path: 'profile/:id',
         name: 'user-profile',
         component: () => import('@/views/profile/ProfileView.vue'),
@@ -94,6 +99,12 @@ const routes = [
         path: 'provider/bookings',
         name: 'provider-bookings',
         component: () => import('@/views/provider/BookingsView.vue'),
+        meta: { roles: ['admin', 'provider'] },
+      },
+      {
+        path: 'provider/earnings',
+        name: 'provider-earnings',
+        component: () => import('@/views/provider/EarningsView.vue'),
         meta: { roles: ['admin', 'provider'] },
       },
     ],

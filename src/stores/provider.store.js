@@ -4,6 +4,7 @@ import { defineStore } from 'pinia'
 import * as providerApi from '@/api/provider.api'
 import * as serviceApi from '@/api/service.api'
 import { extractError } from '@/lib/errors'
+import { resolveMediaUrl } from '@/lib/storage'
 
 const toText = (v) => (typeof v === 'string' ? v : '')
 const toBool = (v) => v === true
@@ -15,6 +16,7 @@ function mapProfile(raw) {
     userId: toText(raw.user_id),
     isVerified: toBool(raw.is_verified),
     businessName: toText(raw.business_name),
+    avatar: resolveMediaUrl(raw.profile_picture_url || raw.avatar_url || raw.profile_picture),
     description: toText(raw.description),
     location: toText(raw.location),
     createdAt: toText(raw.created_at),

@@ -1,4 +1,4 @@
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import { defineStore } from 'pinia'
 
 import * as bookingApi from '@/api/booking.api'
@@ -6,8 +6,10 @@ import * as serviceApi from '@/api/service.api'
 import * as providerApi from '@/api/provider.api'
 import * as availabilityApi from '@/api/availability.api'
 import * as authApi from '@/api/auth.api'
+import { useAuthStore } from '@/stores/auth.store'
 import { extractError } from '@/lib/errors'
 import { formatDate } from '@/lib/marketplace'
+import { resolveMediaUrl } from '@/lib/storage'
 
 const toText = (v) => (typeof v === 'string' ? v : '')
 
@@ -41,6 +43,7 @@ function slotLabel(slot) {
  * customer and provider booking lists (rehydrated from the API).
  */
 export const useBookingStore = defineStore('booking', () => {
+  const auth = useAuthStore()
   // --- Selection (set from the marketplace flow) --------------------------
   const selectedService = ref(null)
   const selectedProviderId = ref('')
@@ -62,6 +65,32 @@ export const useBookingStore = defineStore('booking', () => {
     bookingDate.value = ''
   }
 
+  // Keep booking counterparty avatars in sync if the current user updates
+  // their profile picture (optimistic updates elsewhere in the app).
+  watch(
+    () => auth.user && auth.user.profile_picture_url,
+    (newUrl) => {
+      if (!newUrl) return
+      const resolved = resolveMediaUrl(newUrl)
+      try {
+        myBookings.value = myBookings.value.map((b) => {
+          if (b.providerId === auth.userId || b.customerId === auth.userId) {
+            return { ...b, counterpartyAvatar: resolved }
+          }
+          return b
+        })
+        providerBookings.value = providerBookings.value.map((b) => {
+          if (b.providerId === auth.userId || b.customerId === auth.userId) {
+            return { ...b, counterpartyAvatar: resolved }
+          }
+          return b
+        })
+      } catch (e) {
+        /* ignore */
+      }
+    },
+  )
+
   // Resolve ids on each booking to human labels (service/provider/customer
   // names and the slot time) via the real APIs — no mock data.
   async function enrich(list, counterparty) {
@@ -72,6 +101,7 @@ export const useBookingStore = defineStore('booking', () => {
     const serviceMap = {}
     const slotMap = {}
     const nameMap = {}
+    const avatarMap = {}
 
     await Promise.all([
       ...serviceIds.map(async (id) => {
@@ -96,6 +126,7 @@ export const useBookingStore = defineStore('booking', () => {
             try {
               const p = await providerApi.getProvider(id)
               nameMap[id] = toText(p.business_name) || 'Provider'
+              avatarMap[id] = resolveMediaUrl(p.profile_picture_url || p.avatar_url || p.profile_picture)
             } catch {
               /* ignore */
             }
@@ -104,6 +135,7 @@ export const useBookingStore = defineStore('booking', () => {
             try {
               const u = await authApi.getUser(id)
               nameMap[id] = [u.first_name, u.last_name].filter(Boolean).join(' ').trim() || toText(u.username) || 'Customer'
+              avatarMap[id] = resolveMediaUrl(u.profile_picture_url || u.avatar_url || u.profile_picture)
             } catch {
               /* ignore */
             }
@@ -121,6 +153,8 @@ export const useBookingStore = defineStore('booking', () => {
         slotDate: slot ? toText(slot.slot_date) : '',
         slotStart: slot ? toText(slot.start_time) : '',
         slotEnd: slot ? toText(slot.end_time) : '',
+        counterpartyAvatar:
+          counterparty === 'provider' ? avatarMap[b.providerId] || '' : avatarMap[b.customerId] || '',
       }
     })
   }

@@ -9,6 +9,7 @@ import { useServiceStore } from '@/stores/service.store'
 import { useAvailabilityStore } from '@/stores/availability.store'
 import { useBookingStore } from '@/stores/booking.store'
 import { useToast } from '@/composables/useToast'
+import { useLocation } from '@/composables/useLocation'
 import { formatPriceRange, formatDate, todayYMD } from '@/lib/marketplace'
 import BaseTextarea from '@/components/ui/BaseTextarea.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
@@ -32,7 +33,10 @@ const { providerAvailability } = storeToRefs(availabilityStore)
 const { saving } = storeToRefs(booking)
 
 const loading = ref(false)
+const locLoading = ref(false)
+const locError = ref('')
 const service = ref(null)
+const loc = useLocation()
 
 // Future, active slots for the selected service grouped by date.
 const slotsByDate = computed(() => {
@@ -57,6 +61,11 @@ const slotsByDate = computed(() => {
 const hasSlots = computed(() => slotsByDate.value.length > 0)
 const selectedSlot = ref(null)
 const notes = ref('')
+const selectedAddress = ref('')
+const chosenLat = ref(null)
+const chosenLon = ref(null)
+const suggestLoading = ref(false)
+const showRetry = ref(false)
 const canConfirm = computed(() => selectedSlot.value && !saving.value)
 
 onMounted(async () => {
@@ -71,6 +80,17 @@ onMounted(async () => {
       booking.selectedService && booking.selectedService.id === props.serviceId
         ? booking.selectedService
         : serviceStore.providerServices.find((s) => s.id === props.serviceId) || null
+    // Load saved user location (if any) and show it in the UI.
+    try {
+      const saved = await loc.fetchSavedLocation()
+      if (saved) {
+        if (saved.address) selectedAddress.value = saved.address
+        if (saved.latitude != null) chosenLat.value = saved.latitude
+        if (saved.longitude != null) chosenLon.value = saved.longitude
+      }
+    } catch (e) {
+      // ignore
+    }
   } finally {
     loading.value = false
   }
@@ -78,21 +98,123 @@ onMounted(async () => {
 
 async function confirm() {
   if (!canConfirm.value) return
-  const created = await booking.createBooking({
-    serviceId: props.serviceId,
-    providerId: props.providerId,
-    availabilityId: selectedSlot.value.id,
-    date: selectedSlot.value.slotDate, // the slot carries its own date
-    notes: notes.value,
-  })
-  if (created) {
-    toast.success('Booking requested!')
-    router.push({ name: 'my-bookings' })
-  } else {
-    toast.error(booking.error || 'Could not create the booking.')
+
+  locError.value = ''
+  locLoading.value = true
+
+  try {
+    // Ensure we have a picked location; if not, try to pick now (triggers browser prompt)
+    if (!selectedAddress.value || chosenLat.value == null || chosenLon.value == null) {
+      const ok = await pickLocation()
+      if (!ok) throw new Error('Location not available')
+    }
+    const created = await booking.createBooking({
+      serviceId: props.serviceId,
+      providerId: props.providerId,
+      availabilityId: selectedSlot.value.id,
+      date: selectedSlot.value.slotDate,
+      notes: notes.value,
+      latitude: chosenLat.value,
+      longitude: chosenLon.value,
+      locationAddress: selectedAddress.value,
+    })
+
+    if (created) {
+      toast.success('Booking requested!')
+      router.push({ name: 'my-bookings' })
+    } else {
+      toast.error(booking.error || 'Could not create the booking.')
+    }
+  } catch (e) {
+    locError.value = 'Unable to retrieve your location. Tap retry to try again.'
+    toast.error(locError.value)
+    // show retry button
+    showRetry.value = true
+  } finally {
+    locLoading.value = false
   }
 }
+
+// Trigger browser geolocation to pick location (does not create booking)
+async function pickLocation() {
+  locError.value = ''
+  locLoading.value = true
+  showRetry.value = false
+  try {
+    // Use the centralized composable to refresh and persist location.
+    const ok = await loc.refreshLocation()
+    if (!ok) {
+      throw new Error('location-refresh-failed')
+    }
+    // Update local UI from composable state
+    if (loc.location) {
+      if (loc.location.address) selectedAddress.value = loc.location.address
+      if (loc.location.latitude != null) chosenLat.value = loc.location.latitude
+      if (loc.location.longitude != null) chosenLon.value = loc.location.longitude
+    }
+    // If we have coords but no address, attempt a quick frontend reverse-geocode
+    if ((selectedAddress.value === '' || !selectedAddress.value) && chosenLat.value != null && chosenLon.value != null) {
+      const ok2 = await fetchReverseGeocode(chosenLat.value, chosenLon.value)
+      if (!ok2) {
+        selectedAddress.value = `Lat: ${chosenLat.value.toFixed(6)}, Lon: ${chosenLon.value.toFixed(6)}`
+      }
+    }
+    return true
+  } catch (err) {
+    // Handle permission denied (code === 1) gracefully without printing
+    // the full error object to the console (avoids noisy devtools messages).
+    const denied = err && (err.code === 1 || err.message === 'User denied Geolocation')
+    if (denied) {
+      console.debug('pickLocation: user denied geolocation')
+      toast.info('Location permission denied. Enable location in your browser settings or retry.')
+      locError.value = 'Location permission denied.'
+    } else {
+      console.debug('pickLocation error:', err && (err.message || err))
+      locError.value = 'Unable to retrieve your location.'
+    }
+    showRetry.value = true
+    return false
+  } finally {
+    locLoading.value = false
+  }
+}
+
+
+async function fetchReverseGeocode(lat, lon) {
+  try {
+    const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lon}`
+    console.debug('fetchReverseGeocode: url=', url)
+    const res = await fetch(url, {
+      headers: {
+        'User-Agent': 'JamiiSasa-Booking/1.0'
+      }
+    })
+    if (!res.ok) {
+      console.warn(`Nominatim reverse geocode failed: ${res.status}`)
+      return false
+    }
+    const data = await res.json()
+    if (data && data.display_name) {
+      selectedAddress.value = data.display_name
+      console.debug('Location resolved:', selectedAddress.value)
+      return true
+    }
+    console.warn('Nominatim response missing display_name:', data)
+    return false
+  } catch (e) {
+    console.error('fetchReverseGeocode error:', e)
+    return false
+  }
+}
+
+function clearLocation() {
+  selectedAddress.value = ''
+  chosenLat.value = null
+  chosenLon.value = null
+  showRetry.value = true
+}
 </script>
+
 
 <template>
   <section class="mx-auto max-w-2xl pb-28">
@@ -112,7 +234,7 @@ async function confirm() {
       <!-- Selected service summary -->
       <div class="rounded-card border border-line bg-base p-4">
         <p class="text-xs font-semibold uppercase tracking-wide text-muted">Service</p>
-        <h2 class="mt-1 text-base font-bold text-ink">{{ service.serviceName }}</h2>
+        <h2 class="mt-1 text-base font-bold">{{ service.serviceName }}</h2>
         <p class="text-sm text-muted">{{ currentProvider?.businessName || 'Provider' }}</p>
         <p class="mt-1 text-sm font-semibold text-brand">{{ formatPriceRange(service.priceMin, service.priceMax) }}</p>
       </div>
@@ -149,12 +271,43 @@ async function confirm() {
       <!-- Notes -->
       <h3 class="mb-2 mt-6 text-sm font-bold text-ink">Notes (optional)</h3>
       <BaseTextarea v-model="notes" placeholder="Anything the provider should know…" :rows="3" />
+      <div class="mt-3">
+        <!-- Show resolved/selected address in place of input -->
+          <div v-if="selectedAddress" class="mt-2 flex items-start justify-between gap-3">
+          <div class="flex-1">
+            <p class="text-sm font-medium text-ink">Pickup address</p>
+            <p class="mt-1 text-sm text-muted">{{ selectedAddress }}</p>
+          </div>
+          <div>
+            <button type="button" class="text-sm text-brand underline" @click="clearLocation">Change</button>
+          </div>
+        </div>
+
+        <div v-else class="space-y-2">
+          <button
+            type="button"
+            class="w-full rounded-md bg-brand px-4 py-2 text-sm font-semibold text-white"
+            @click="pickLocation"
+            :disabled="locLoading"
+          >
+            <span v-if="!locLoading">Use my current location</span>
+            <span v-else>Locating…</span>
+          </button>
+
+          <div v-if="showRetry" class="mt-2 flex items-center justify-between">
+            <p class="text-sm text-muted">Location not available. Tap retry to try again.</p>
+            <button type="button" class="text-sm text-brand underline" @click="pickLocation">Retry</button>
+          </div>
+
+          <div v-else class="mt-2 text-xs text-muted">The app will request your browser location to autofill pickup address.</div>
+        </div>
+      </div>
     </template>
 
     <EmptyState v-else title="Service unavailable" description="We couldn't load this service.">
       <template #icon><AlertTriangle class="h-6 w-6" /></template>
       <template #action>
-        <BaseButton variant="secondary" @click="router.push({ name: 'marketplace-providers' })">Back to marketplace</BaseButton>
+        <BaseButton variant="secondary" @click="router.push({ name: 'marketplace-providers' })">Back to JamiiWera</BaseButton>
       </template>
     </EmptyState>
 

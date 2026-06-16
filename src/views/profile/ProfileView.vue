@@ -88,7 +88,7 @@ function mapPost(raw = {}) {
     content: toText(raw.content),
     mediaUrl: resolveMediaUrl(raw.media_url),
     mediaType: toText(raw.media_type),
-    category: toText(raw.category) || 'JamiiLiza',
+    category: toText(raw.category),
     likes: typeof raw.likes_count === 'number' ? raw.likes_count : 0,
     comments: typeof raw.comments_count === 'number' ? raw.comments_count : 0,
     liked: raw.is_liked === true,

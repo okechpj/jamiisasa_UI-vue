@@ -51,7 +51,7 @@ const displayName = computed(() => currentProvider.value?.businessName || 'Provi
   <section class="mx-auto max-w-2xl">
     <RouterLink :to="{ name: 'marketplace-providers' }" class="mb-4 inline-flex items-center gap-1.5 text-sm font-semibold text-muted hover:text-ink">
       <ArrowLeft class="h-4 w-4" />
-      Back to marketplace
+      Back to JamiiWera
     </RouterLink>
 
     <div v-if="loading && !currentProvider" class="space-y-3 rounded-card border border-line bg-base p-6">

@@ -42,6 +42,15 @@ const canCancel = computed(
 
     <p v-if="booking.notes" class="mt-2 text-sm text-muted">{{ booking.notes }}</p>
 
+    <!-- Customer location (visible to provider only after acceptance) -->
+    <div v-if="props.perspective === 'provider' && booking.status === 'accepted' && booking.locationAddress" class="mt-3 rounded-card border border-line bg-surface px-3 py-2">
+      <p class="text-[11px] font-semibold uppercase tracking-wide text-muted">Customer Location</p>
+      <p class="text-sm font-medium text-ink">{{ booking.locationAddress }}</p>
+      <div class="mt-2">
+        <a :href="booking.googleMapsUrl" target="_blank" rel="noopener" class="inline-flex items-center gap-2 text-sm font-semibold text-brand">Open in Google Maps</a>
+      </div>
+    </div>
+
     <!-- Confirmation code — set when the provider accepts; the same value is
          shown to both the customer and the provider. -->
     <div v-if="booking.code" class="mt-3 rounded-card border border-line bg-surface px-3 py-2">

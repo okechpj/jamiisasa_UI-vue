@@ -2,6 +2,7 @@ import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
 
 import * as authApi from '@/api/auth.api'
+import { useLocation } from '@/composables/useLocation'
 import { decodeJwt, isExpired } from '@/lib/jwt'
 import { getToken, setToken, clearToken } from '@/lib/token'
 import { extractError } from '@/lib/errors'
@@ -60,6 +61,16 @@ export const useAuthStore = defineStore('auth', () => {
       if (!jwt) throw new Error('no token')
       setSession(jwt)
       await fetchMe()
+      // Best-effort: capture browser location for all users (non-blocking).
+      try {
+        const loc = useLocation()
+        // do not await — keep login fast; composable handles failures.
+        loc.refreshLocation().catch(() => {
+          /* ignore */
+        })
+      } catch (e) {
+        /* ignore */
+      }
       return true
     } catch (e) {
       error.value = extractError(e, 'Invalid email or password.')

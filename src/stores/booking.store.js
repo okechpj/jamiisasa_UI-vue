@@ -29,6 +29,10 @@ function mapBooking(raw) {
     acceptedQuoteId: toText(raw.accepted_quote_id),
     notes: toText(raw.notes),
     createdAt: toText(raw.created_at),
+    customerLatitude: raw.customer_latitude != null ? Number(raw.customer_latitude) : null,
+    customerLongitude: raw.customer_longitude != null ? Number(raw.customer_longitude) : null,
+    locationAddress: toText(raw.location_address),
+    googleMapsUrl: toText(raw.google_maps_url),
   }
 }
 
@@ -159,18 +163,26 @@ export const useBookingStore = defineStore('booking', () => {
     })
   }
 
-  async function createBooking({ serviceId, providerId, availabilityId, date, notes }) {
+  async function createBooking({ serviceId, providerId, availabilityId, date, notes, latitude, longitude, locationAddress }) {
     error.value = ''
     saving.value = true
     try {
       // booking_date must be RFC3339 for the Go time.Time field; send midnight UTC.
-      const created = await bookingApi.createBooking({
+      const payload = {
         service_id: serviceId,
         provider_id: providerId,
         availability_id: availabilityId,
         booking_date: `${date}T00:00:00Z`,
         notes: toText(notes),
-      })
+      }
+      if (typeof latitude === 'number' && typeof longitude === 'number') {
+        payload.latitude = latitude
+        payload.longitude = longitude
+      }
+      if (locationAddress && typeof locationAddress === 'string') {
+        payload.location_address = toText(locationAddress)
+      }
+      const created = await bookingApi.createBooking(payload)
       return mapBooking(created)
     } catch (e) {
       error.value = extractError(e, 'Could not create the booking.')
@@ -209,7 +221,10 @@ export const useBookingStore = defineStore('booking', () => {
   async function accept(id) {
     try {
       await bookingApi.acceptBooking(id)
+      // Refresh both provider and customer booking lists so the
+      // generated confirmation code is visible to both parties.
       await fetchProviderBookings()
+      await fetchMyBookings()
       return true
     } catch (e) {
       error.value = extractError(e, 'Could not accept the booking.')

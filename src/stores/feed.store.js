@@ -23,7 +23,7 @@ import { resolveMediaUrl } from '@/lib/storage'
  */
 
 const PAGE_SIZE = 10
-const DEFAULT_CATEGORIES = ['All', 'JamiiFedha', 'JamiiLiza', 'JamiiWins']
+const DEFAULT_CATEGORIES = []
 
 const toText = (v) => (typeof v === 'string' ? v : '')
 const toNum = (v) => (typeof v === 'number' && !Number.isNaN(v) ? v : 0)
@@ -72,7 +72,7 @@ export const useFeedStore = defineStore('feed', () => {
       content: toText(raw.content),
       mediaUrl: resolveMediaUrl(raw.media_url),
       mediaType: toText(raw.media_type),
-      category: toText(raw.category) || 'JamiiLiza',
+      category: toText(raw.category),
       likes: toNum(raw.likes_count),
       comments: toNum(raw.comments_count),
       liked: toBool(raw.is_liked),
@@ -185,7 +185,7 @@ export const useFeedStore = defineStore('feed', () => {
     try {
       const created = await postApi.createPost({
         user_id: auth.userId,
-        category: toText(category) || (activeCategory.value !== 'All' ? activeCategory.value : 'JamiiLiza'),
+        category: toText(category),
         content: body,
         media_url: toText(mediaUrl),
         media_type: toText(mediaType),

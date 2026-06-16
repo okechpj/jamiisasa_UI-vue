@@ -17,7 +17,7 @@ const isProvider = computed(() => auth.role === 'provider' || auth.role === 'adm
 // The mobile bar splits these around a centered create (+) FAB.
 const primaryNav = [
   { name: 'feed', label: 'Discovery', icon: Compass },
-  { name: 'marketplace-providers', label: 'Marketplace', icon: Store },
+  { name: 'marketplace-providers', label: 'JamiiWera', icon: Store },
   { name: 'connections', label: 'Connections', icon: Users },
   { name: 'profile', label: 'Profile', icon: User },
 ]
@@ -42,6 +42,10 @@ const linkClass = (name) =>
   activeName.value === name ? 'bg-brand/10 text-brand' : 'text-muted hover:bg-base hover:text-ink'
 
 function onCreate() {
+  if (!auth.isAuthenticated) {
+    router.push({ name: 'login', query: { redirect: '/' } })
+    return
+  }
   router.push({ name: 'feed', query: { compose: '1' } })
 }
 
@@ -95,7 +99,7 @@ function logout() {
         </nav>
 
         <!-- Current user + logout -->
-        <div class="mt-2 border-t border-line pt-3">
+        <div v-if="auth.isAuthenticated" class="mt-2 border-t border-line pt-3">
           <RouterLink :to="{ name: 'profile' }" class="flex items-center gap-3 rounded-xl px-2 py-2 transition-colors hover:bg-base">
             <BaseAvatar :name="auth.displayName" :src="resolveMediaUrl(auth.user?.profile_picture_url)" size="sm" />
             <span class="min-w-0 flex-1 truncate text-sm font-semibold text-ink">{{ auth.displayName }}</span>
@@ -108,6 +112,12 @@ function logout() {
             <LogOut class="h-5 w-5" />
             Log out
           </button>
+        </div>
+        <div v-else class="mt-2 border-t border-line pt-3">
+          <RouterLink :to="{ name: 'login' }" class="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-brand transition-colors hover:bg-base">
+            <LogOut class="h-5 w-5 rotate-180" />
+            Log in
+          </RouterLink>
         </div>
       </aside>
 

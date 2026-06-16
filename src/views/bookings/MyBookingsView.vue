@@ -66,12 +66,12 @@ function openStatus(booking) {
     <EmptyState
       v-else-if="!myBookings.length"
       title="No bookings yet"
-      description="Browse the marketplace and book a service to get started."
+      description="Browse JamiiWera and book a service to get started."
     >
       <template #icon><CalendarClock class="h-6 w-6" /></template>
       <template #action>
         <RouterLink :to="{ name: 'marketplace-providers' }">
-          <BaseButton>Explore the marketplace</BaseButton>
+          <BaseButton>Explore JamiiWera</BaseButton>
         </RouterLink>
       </template>
     </EmptyState>

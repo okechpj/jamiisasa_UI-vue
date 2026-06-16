@@ -6,34 +6,38 @@ const routes = [
   {
     path: '/',
     component: () => import('@/layouts/MainLayout.vue'),
-    meta: { requiresAuth: true },
     children: [
       { path: '', name: 'feed', component: () => import('@/views/feed/FeedView.vue') },
       {
         path: 'connections',
         name: 'connections',
         component: () => import('@/views/connections/ConnectionsView.vue'),
+        meta: { requiresAuth: true },
       },
       {
         path: 'connections/pending',
         name: 'pending-requests',
         component: () => import('@/views/connections/PendingRequestsView.vue'),
+        meta: { requiresAuth: true },
       },
       {
         path: 'profile',
         name: 'profile',
         component: () => import('@/views/profile/ProfileView.vue'),
+        meta: { requiresAuth: true },
       },
       {
         path: 'profile/edit',
         name: 'edit-profile',
         component: () => import('@/views/profile/EditProfileView.vue'),
+        meta: { requiresAuth: true },
       },
       {
         path: 'profile/:id',
         name: 'user-profile',
         component: () => import('@/views/profile/ProfileView.vue'),
         props: true,
+        meta: { requiresAuth: true },
       },
 
       // --- Marketplace (customer discovery) ---
@@ -47,17 +51,20 @@ const routes = [
         name: 'provider-details',
         component: () => import('@/views/marketplace/ProviderDetailsView.vue'),
         props: true,
+        meta: { requiresAuth: true },
       },
       {
         path: 'marketplace/booking/:providerId/:serviceId',
         name: 'booking',
         component: () => import('@/views/marketplace/BookingView.vue'),
         props: true,
+        meta: { requiresAuth: true },
       },
       {
         path: 'bookings',
         name: 'my-bookings',
         component: () => import('@/views/bookings/MyBookingsView.vue'),
+        meta: { requiresAuth: true },
       },
 
       // --- Chat & quote negotiation (per booking) ---
@@ -66,6 +73,7 @@ const routes = [
         name: 'chat',
         component: () => import('@/views/chat/ChatRoom.vue'),
         props: true,
+        meta: { requiresAuth: true },
       },
 
       // --- Payment checkout (per booking) ---
@@ -74,6 +82,7 @@ const routes = [
         name: 'checkout',
         component: () => import('@/views/payment/CheckoutView.vue'),
         props: true,
+        meta: { requiresAuth: true },
       },
 
       // --- Provider dashboard (admin/provider only) ---
@@ -81,31 +90,31 @@ const routes = [
         path: 'provider/profile',
         name: 'provider-profile',
         component: () => import('@/views/provider/ProfileView.vue'),
-        meta: { roles: ['admin', 'provider'] },
+        meta: { requiresAuth: true, roles: ['admin', 'provider'] },
       },
       {
         path: 'provider/services',
         name: 'provider-services',
         component: () => import('@/views/provider/ServicesView.vue'),
-        meta: { roles: ['admin', 'provider'] },
+        meta: { requiresAuth: true, roles: ['admin', 'provider'] },
       },
       {
         path: 'provider/availability',
         name: 'provider-availability',
         component: () => import('@/views/provider/AvailabilityView.vue'),
-        meta: { roles: ['admin', 'provider'] },
+        meta: { requiresAuth: true, roles: ['admin', 'provider'] },
       },
       {
         path: 'provider/bookings',
         name: 'provider-bookings',
         component: () => import('@/views/provider/BookingsView.vue'),
-        meta: { roles: ['admin', 'provider'] },
+        meta: { requiresAuth: true, roles: ['admin', 'provider'] },
       },
       {
         path: 'provider/earnings',
         name: 'provider-earnings',
         component: () => import('@/views/provider/EarningsView.vue'),
-        meta: { roles: ['admin', 'provider'] },
+        meta: { requiresAuth: true, roles: ['admin', 'provider'] },
       },
     ],
   },

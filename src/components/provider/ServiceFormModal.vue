@@ -67,6 +67,10 @@ function submit() {
     error.value = 'Service name is required.'
     return
   }
+  if (!form.serviceCategory) {
+    error.value = 'Service category is required.'
+    return
+  }
   const min = Number(form.priceMin) || 0
   const max = Number(form.priceMax) || 0
   if (min < 0 || max < 0) {
@@ -92,7 +96,26 @@ function submit() {
   <BaseModal :open="open" :title="isEdit ? 'Edit service' : 'Add service'" @update:open="emit('update:open', $event)">
     <div class="space-y-4">
       <BaseInput v-model="form.serviceName" label="Service name" placeholder="e.g. Plumbing Repair" required />
-      <BaseInput v-model="form.serviceCategory" label="Category" placeholder="e.g. Home Services" />
+      
+      <div>
+        <label class="mb-1.5 block text-sm font-medium text-ink">
+          Category <span class="text-danger">*</span>
+        </label>
+        <select
+          v-model="form.serviceCategory"
+          required
+          class="w-full rounded-xl border bg-base px-3.5 py-2.5 text-sm text-ink outline-none transition-colors border-line focus:border-brand"
+        >
+          <option value="" disabled>Select a category</option>
+          <option value="mama fua">mama fua</option>
+          <option value="seats and carpets">seats and carpets</option>
+          <option value="deep cleaning">deep cleaning</option>
+          <option value="AirBnB management">AirBnB management</option>
+          <option value="Post construction cleaning">Post construction cleaning</option>
+          <option value="Laundromat">Laundromat</option>
+        </select>
+      </div>
+
       <BaseTextarea v-model="form.description" label="Description" :rows="3" />
       <div class="grid grid-cols-2 gap-3">
         <BaseInput v-model="form.priceMin" label="Min price (KES)" type="number" />

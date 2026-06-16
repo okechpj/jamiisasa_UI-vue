@@ -14,13 +14,16 @@ import CommentsModal from '@/components/feed/CommentsModal.vue'
 import FeaturedProviders from '@/components/feed/FeaturedProviders.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
+import { useAuthStore } from '@/stores/auth.store'
+
+const auth = useAuthStore()
 
 const feed = useFeedStore()
 const toast = useToast()
 const route = useRoute()
 const router = useRouter()
 
-const { posts, hasMore, isEmpty, loading, error, categories, activeCategory, commentsLoading, commentsError } =
+const { posts, hasMore, isEmpty, loading, error, commentsLoading, commentsError } =
   storeToRefs(feed)
 
 onMounted(() => feed.loadFeed())
@@ -47,12 +50,24 @@ watch(
   () => route.query.compose,
   (val) => {
     if (val) {
+      if (!auth.isAuthenticated) {
+        router.push({ name: 'login', query: { redirect: '/' } })
+        return
+      }
       composerOpen.value = true
       router.replace({ query: {} })
     }
   },
   { immediate: true },
 )
+
+function triggerComposer() {
+  if (!auth.isAuthenticated) {
+    router.push({ name: 'login', query: { redirect: '/' } })
+    return
+  }
+  composerOpen.value = true
+}
 
 async function handleCreate(payload) {
   submitting.value = true
@@ -107,24 +122,12 @@ async function handleConnect(postId) {
       <input
         v-model="searchQuery"
         type="search"
-        placeholder="Search Jamii Sasa…"
+        placeholder="Search posts…"
         class="w-full rounded-xl border border-line bg-base py-2.5 pl-10 pr-3 text-sm text-ink outline-none placeholder:text-muted focus:border-brand"
       />
     </div>
 
-    <!-- Category tabs -->
-    <div class="-mx-1 mb-5 flex gap-1 overflow-x-auto border-b border-line px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-      <button
-        v-for="c in categories"
-        :key="c"
-        type="button"
-        class="whitespace-nowrap border-b-2 px-3 pb-2.5 text-sm font-semibold transition-colors"
-        :class="activeCategory === c ? 'border-brand text-brand' : 'border-transparent text-muted hover:text-ink'"
-        @click="feed.setActiveCategory(c)"
-      >
-        {{ c }}
-      </button>
-    </div>
+
 
     <!-- Featured providers carousel -->
     <FeaturedProviders />
@@ -134,7 +137,7 @@ async function handleConnect(postId) {
     <button
       type="button"
       class="mb-5 flex w-full items-center gap-3 rounded-card border border-line bg-base px-4 py-3 text-left text-sm text-muted transition-colors hover:bg-surface"
-      @click="composerOpen = true"
+      @click="triggerComposer"
     >
       <PenLine class="h-5 w-5 text-brand" />
       Create a post…
@@ -161,7 +164,7 @@ async function handleConnect(postId) {
     >
       <template #icon><Inbox class="h-6 w-6" /></template>
       <template #action>
-        <BaseButton @click="composerOpen = true">Create a post</BaseButton>
+        <BaseButton @click="triggerComposer">Create a post</BaseButton>
       </template>
     </EmptyState>
 
@@ -197,7 +200,6 @@ async function handleConnect(postId) {
     <!-- Modals -->
     <CreatePostModal
       v-model:open="composerOpen"
-      :categories="categories"
       :submitting="submitting"
       @submit="handleCreate"
     />

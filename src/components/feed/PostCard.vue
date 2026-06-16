@@ -1,10 +1,14 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
-import { RouterLink } from 'vue-router'
+import { RouterLink, useRouter } from 'vue-router'
 import { Heart, MessageCircle, Share2 } from 'lucide-vue-next'
 
 import BaseAvatar from '@/components/ui/BaseAvatar.vue'
 import BaseBadge from '@/components/ui/BaseBadge.vue'
+import { useAuthStore } from '@/stores/auth.store'
+
+const auth = useAuthStore()
+const router = useRouter()
 
 const props = defineProps({
   post: { type: Object, required: true },
@@ -53,9 +57,29 @@ const displayedLikes = computed(() => {
 })
 
 function handleLike() {
+  if (!auth.isAuthenticated) {
+    router.push({ name: 'login', query: { redirect: '/' } })
+    return
+  }
   // toggle local state immediately for optimistic UI
   localLiked.value = !localLiked.value
   emit('like', props.post.id)
+}
+
+function handleComment() {
+  if (!auth.isAuthenticated) {
+    router.push({ name: 'login', query: { redirect: '/' } })
+    return
+  }
+  emit('comment', props.post.id)
+}
+
+function handleConnect() {
+  if (!auth.isAuthenticated) {
+    router.push({ name: 'login', query: { redirect: '/' } })
+    return
+  }
+  emit('connect', props.post.id)
 }
 
 const connectLabel = computed(() => {
@@ -88,7 +112,7 @@ const segments = computed(() =>
         </RouterLink>
         <p class="text-xs text-muted">{{ post.timeAgo }}</p>
       </div>
-      <BaseBadge variant="brand">{{ post.category }}</BaseBadge>
+     
     </header>
 
     <!-- Body -->
@@ -119,7 +143,7 @@ const segments = computed(() =>
         <button
           type="button"
           class="inline-flex items-center gap-1.5 text-sm font-semibold transition-colors hover:text-brand"
-          @click="$emit('comment', post.id)"
+          @click="handleComment"
         >
           <MessageCircle class="h-5 w-5" />
           {{ post.comments }}
@@ -134,7 +158,7 @@ const segments = computed(() =>
           v-if="post.connectStatus === 'none'"
           type="button"
           class="rounded-md px-3 py-1.5 text-sm font-bold transition-opacity bg-brand-light text-white hover:opacity-90"
-          @click="$emit('connect', post.id)"
+          @click="handleConnect"
         >
           {{ connectLabel }}
         </button>

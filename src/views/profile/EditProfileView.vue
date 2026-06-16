@@ -45,6 +45,15 @@
           disabled
         />
 
+        <div class="mt-4 border-t pt-4">
+          <p class="text-sm font-medium text-ink">Current Location</p>
+          <p class="mt-1 text-sm text-muted">{{ savedLocation?.address || 'No saved location' }}</p>
+          <div class="mt-2 flex items-center gap-3">
+            <BaseButton size="sm" variant="outline" :loading="locLoading" @click="handleRefreshLocation">Update Location</BaseButton>
+            <p v-if="locError" class="text-sm text-red-600">{{ locError }}</p>
+          </div>
+        </div>
+
         <p v-if="error" class="text-sm text-red-600">{{ error }}</p>
         <p v-if="success" class="text-sm text-green-600">{{ success }}</p>
 
@@ -69,6 +78,7 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth.store'
+import { useLocation } from '@/composables/useLocation'
 import BaseInput from '@/components/ui/BaseInput.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import ImageUpload from '@/components/ui/ImageUpload.vue'
@@ -88,10 +98,21 @@ const uploading = ref(false)
 const saving = ref(false)
 const error = ref('')
 const success = ref('')
+const loc = useLocation()
+const locLoading = ref(false)
+const locError = ref('')
+const savedLocation = ref(null)
 
 onMounted(async () => {
   if (!auth.user) {
     await auth.fetchMe()
+  }
+
+  try {
+    const s = await loc.fetchSavedLocation()
+    if (s) savedLocation.value = s
+  } catch (e) {
+    // ignore
   }
 
   form.value = {
@@ -131,6 +152,25 @@ function onUploadError() {
 
 function handleRemove() {
   form.value.profilePictureUrl = ''
+}
+
+async function handleRefreshLocation() {
+  locLoading.value = true
+  locError.value = ''
+  try {
+    const ok = await loc.refreshLocation()
+    if (ok) {
+      // refresh profile from server to pick up new last-known location
+      await auth.fetchMe()
+      savedLocation.value = await loc.fetchSavedLocation()
+    } else {
+      locError.value = 'Could not update location.'
+    }
+  } catch (e) {
+    locError.value = 'Could not update location.'
+  } finally {
+    locLoading.value = false
+  }
 }
 
 async function handleSubmit() {

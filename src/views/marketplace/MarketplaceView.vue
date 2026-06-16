@@ -20,10 +20,15 @@ const query = ref('')
 const activeCategory = ref('All')
 const activeLocation = ref('All')
 
-const categories = computed(() => {
-  const set = new Set(marketplaceServices.value.map((s) => s.serviceCategory).filter(Boolean))
-  return ['All', ...[...set].sort()]
-})
+const categories = [
+  'All',
+  'mama fua',
+  'seats and carpets',
+  'deep cleaning',
+  'AirBnB management',
+  'Post construction cleaning',
+  'Laundromat'
+]
 const locations = computed(() => {
   const set = new Set(marketplaceServices.value.map((s) => s.location).filter(Boolean))
   return [...set].sort()
@@ -48,7 +53,7 @@ const filtered = computed(() => {
       <input
         v-model="query"
         type="search"
-        placeholder="Search Jamii Sasa…"
+        placeholder="Search JamiiWera…"
         class="w-full rounded-xl border border-line bg-base py-2.5 pl-10 pr-3 text-sm text-ink outline-none placeholder:text-muted focus:border-brand"
       />
     </div>
@@ -85,7 +90,7 @@ const filtered = computed(() => {
     </div>
 
     <!-- Error -->
-    <EmptyState v-else-if="error" title="Couldn't load the marketplace" :description="error">
+    <EmptyState v-else-if="error" title="Couldn't load JamiiWera" :description="error">
       <template #icon><AlertTriangle class="h-6 w-6" /></template>
       <template #action><BaseButton variant="secondary" @click="store.fetchMarketplaceServices()">Try again</BaseButton></template>
     </EmptyState>

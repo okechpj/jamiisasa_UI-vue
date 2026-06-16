@@ -8,14 +8,12 @@ import ImageUpload from '@/components/ui/ImageUpload.vue'
 
 const props = defineProps({
   open: { type: Boolean, default: false },
-  categories: { type: Array, default: () => [] },
   submitting: { type: Boolean, default: false },
 })
 
 const emit = defineEmits(['update:open', 'submit'])
 
 const content = ref('')
-const category = ref('JamiiLiza')
 const fileKey = ref(null)
 const uploading = ref(false)
 
@@ -24,7 +22,6 @@ watch(
   (isOpen) => {
     if (isOpen) {
       content.value = ''
-      category.value = props.categories.find((c) => c !== 'All') || 'JamiiLiza'
       fileKey.value = null
       uploading.value = false
     }
@@ -52,7 +49,7 @@ function submit() {
   if (!content.value.trim()) return
   emit('submit', {
     content: content.value,
-    category: category.value,
+    category: '',
     mediaUrl: fileKey.value || '',
     mediaType: fileKey.value ? 'image' : '',
   })
@@ -77,22 +74,6 @@ function submit() {
         @upload-error="handleUploadError"
         @remove="handleRemove"
       />
-
-      <div>
-        <label class="mb-1.5 block text-sm font-medium text-ink">Category</label>
-        <div class="flex flex-wrap gap-2">
-          <button
-            v-for="c in categories.filter((x) => x !== 'All')"
-            :key="c"
-            type="button"
-            class="rounded-full border px-3 py-1 text-xs font-semibold transition-colors"
-            :class="category === c ? 'border-brand bg-brand/10 text-brand' : 'border-line text-muted hover:bg-surface'"
-            @click="category = c"
-          >
-            {{ c }}
-          </button>
-        </div>
-      </div>
     </div>
 
     <template #footer>
@@ -103,3 +84,4 @@ function submit() {
     </template>
   </BaseModal>
 </template>
+

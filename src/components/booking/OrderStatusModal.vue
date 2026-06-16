@@ -184,6 +184,15 @@ const eta = computed(() => {
         <BaseBadge :variant="status.variant">{{ status.label }}</BaseBadge>
       </div>
 
+        <!-- Customer location (provider view after acceptance) -->
+        <div v-if="props.perspective === 'provider' && b.status === 'accepted' && b.locationAddress" class="mt-3 rounded-card border border-line bg-surface px-3 py-2">
+          <p class="text-[11px] font-semibold uppercase tracking-wide text-muted">Customer Location</p>
+          <p class="text-sm font-medium text-ink">{{ b.locationAddress }}</p>
+          <div class="mt-2">
+            <a :href="b.googleMapsUrl" target="_blank" rel="noopener" class="inline-flex items-center gap-2 text-sm font-semibold text-brand">Open in Google Maps</a>
+          </div>
+        </div>
+
       <!-- Total due -->
       <div class="flex items-center justify-between rounded-card bg-surface px-4 py-3">
         <span class="text-sm text-muted">Total amount due</span>

@@ -31,3 +31,9 @@ export async function updateProfile(payload) {
   const { data } = await client.put('/api/v1/me', payload)
   return data
 }
+
+// POST /api/v1/me/location -> { message }
+export async function updateLocation(payload) {
+  const { data } = await client.post('/api/v1/me/location', payload)
+  return data
+}

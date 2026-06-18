@@ -96,9 +96,15 @@ async function onSubmit() {
       <BaseButton type="submit" block :loading="auth.loading">Create account</BaseButton>
     </form>
 
-    <p class="mt-6 text-center text-sm text-muted">
-      Already have an account?
-      <RouterLink :to="{ name: 'login' }" class="font-semibold text-brand">Log in</RouterLink>
-    </p>
+    <div class="mt-6 space-y-2 text-center text-sm text-muted border-t border-line pt-4">
+      <p>
+        Already have an account?
+        <RouterLink :to="{ name: 'login' }" class="font-semibold text-brand">Log in</RouterLink>
+      </p>
+      <p>
+        Are you a service provider?
+        <RouterLink :to="{ name: 'register-provider' }" class="font-semibold text-brand">Register as a provider</RouterLink>
+      </p>
+    </div>
   </div>
 </template>

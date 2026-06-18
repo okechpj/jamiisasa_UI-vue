@@ -125,6 +125,7 @@ const routes = [
       { path: '', redirect: { name: 'login' } },
       { path: 'login', name: 'login', component: () => import('@/views/auth/LoginView.vue') },
       { path: 'register', name: 'register', component: () => import('@/views/auth/RegisterView.vue') },
+      { path: 'register-provider', name: 'register-provider', component: () => import('@/views/auth/RegisterProviderView.vue') },
     ],
   },
   {

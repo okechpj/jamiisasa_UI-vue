@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed } from 'vue'
-import { CheckCircle2, Smartphone, UserCircle } from 'lucide-vue-next'
+import { CheckCircle2, Smartphone, Mail } from 'lucide-vue-next'
 
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseInput from '@/components/ui/BaseInput.vue'
@@ -23,7 +23,7 @@ const props = defineProps({
 const emit = defineEmits(['pay'])
 
 const senderPhone = ref('')
-const recipientPhone = ref('')
+const email = ref('')
 
 // Normalise to Daraja's 2547XXXXXXXX / 2541XXXXXXXX format.
 function normalize(input) {
@@ -33,10 +33,12 @@ function normalize(input) {
   return s
 }
 const normalizedSender = computed(() => normalize(senderPhone.value))
-const normalizedRecipient = computed(() => normalize(recipientPhone.value))
 const validSender = computed(() => /^254(7|1)\d{8}$/.test(normalizedSender.value))
-const validRecipient = computed(() => /^254(7|1)\d{8}$/.test(normalizedRecipient.value))
-const allValid = computed(() => validSender.value && validRecipient.value)
+const validEmail = computed(() => {
+  const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  return re.test(email.value)
+})
+const allValid = computed(() => validSender.value && validEmail.value)
 const busy = computed(() => props.state === 'sending' || props.state === 'waiting')
 
 const label = computed(() => {
@@ -47,7 +49,7 @@ const label = computed(() => {
 
 function submit() {
   if (!allValid.value || busy.value) return
-  emit('pay', { sender: normalizedSender.value, recipient: normalizedRecipient.value })
+  emit('pay', { sender: normalizedSender.value, email: email.value })
 }
 </script>
 
@@ -95,20 +97,19 @@ function submit() {
       </div>
       <p v-if="senderPhone && !validSender" class="mt-1 text-xs text-danger">Enter a valid Safaricom number.</p>
 
-      <!-- Provider phone (recipient - who receives payment) -->
-      <label class="mt-4 block text-sm font-semibold text-ink">Provider phone number (recipient)</label>
+      <!-- Customer billing email -->
+      <label class="mt-4 block text-sm font-semibold text-ink">Billing email address</label>
       <div class="mt-1.5 flex items-center gap-2 rounded-card border border-line bg-surface px-3 focus-within:border-brand">
-        <UserCircle class="h-5 w-5 shrink-0 text-muted" />
+        <Mail class="h-5 w-5 shrink-0 text-muted" />
         <input
-          v-model="recipientPhone"
+          v-model="email"
           :disabled="busy"
-          type="tel"
-          inputmode="tel"
-          placeholder="07XX XXX XXX"
+          type="email"
+          placeholder="your.email@example.com"
           class="min-w-0 flex-1 bg-transparent py-2.5 text-sm text-ink placeholder:text-muted focus:outline-none disabled:opacity-50"
         >
       </div>
-      <p v-if="recipientPhone && !validRecipient" class="mt-1 text-xs text-danger">Enter a valid Safaricom number.</p>
+      <p v-if="email && !validEmail" class="mt-1 text-xs text-danger">Enter a valid email address.</p>
 
       <p v-if="state === 'waiting'" class="mt-3 rounded-card bg-surface px-3 py-2 text-sm text-muted">
         Check your phone to complete the payment…

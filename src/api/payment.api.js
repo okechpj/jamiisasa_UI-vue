@@ -6,12 +6,12 @@ import client from './client'
  * and the payer's phone number. Base URL comes from VITE_API_BASE_URL (client).
  */
 
-// POST /api/v1/payments/stk  { booking_id, phone_number, recipient_number }
-export async function initiateSTK(bookingId, phoneNumber, recipientNumber) {
+// POST /api/v1/payments/stk  { booking_id, phone_number, email }
+export async function initiateSTK(bookingId, phoneNumber, email) {
   const { data } = await client.post('/api/v1/payments/stk', {
     booking_id: bookingId,
     phone_number: phoneNumber,
-    recipient_number: recipientNumber,
+    email: email,
   })
   return data
 }

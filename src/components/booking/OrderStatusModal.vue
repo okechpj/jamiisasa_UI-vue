@@ -126,7 +126,7 @@ const eta = computed(() => {
         </p>
         <p class="mt-0.5 flex items-center gap-1.5 text-xs text-muted">
           <CalendarClock class="h-3.5 w-3.5" />
-          {{ dateLabel }}<span v-if="b.slotLabel"> · {{ b.slotLabel }}</span>
+          <span v-if="b.slotLabel">  {{ b.slotLabel }}</span>
         </p>
       </div>
 

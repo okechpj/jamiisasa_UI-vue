@@ -109,11 +109,11 @@ function startPolling() {
   }, 4000)
 }
 
-async function onPay({ sender, recipient }) {
+async function onPay({ sender, email }) {
   payError.value = ''
   payState.value = 'sending'
   try {
-    await initiateSTK(props.bookingId, sender, recipient)
+    await initiateSTK(props.bookingId, sender, email)
     payState.value = 'waiting'
     startPolling()
   } catch (e) {

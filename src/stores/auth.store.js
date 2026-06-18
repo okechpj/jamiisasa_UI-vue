@@ -20,6 +20,7 @@ export const useAuthStore = defineStore('auth', () => {
   const user = ref(null) // full profile from /me
   const loading = ref(false)
   const error = ref('')
+  const justLoggedIn = ref(false)
 
   // Drop a stale token on init so guards see the real auth state immediately.
   if (token.value && isExpired(token.value)) {
@@ -50,6 +51,7 @@ export const useAuthStore = defineStore('auth', () => {
     token.value = ''
     user.value = null
     clearToken()
+    justLoggedIn.value = false
   }
 
   // --- Actions -------------------------------------------------------------
@@ -61,6 +63,7 @@ export const useAuthStore = defineStore('auth', () => {
       if (!jwt) throw new Error('no token')
       setSession(jwt)
       await fetchMe()
+      justLoggedIn.value = true
       // Best-effort: capture browser location for all users (non-blocking).
       try {
         const loc = useLocation()
@@ -130,6 +133,7 @@ export const useAuthStore = defineStore('auth', () => {
     user,
     loading,
     error,
+    justLoggedIn,
     // getters
     claims,
     userId,

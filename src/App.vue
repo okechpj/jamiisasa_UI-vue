@@ -3,13 +3,16 @@ import { onMounted } from 'vue'
 import { RouterView } from 'vue-router'
 
 import { useAuthStore } from '@/stores/auth.store'
+import { usePwaStore } from '@/stores/pwa.store'
 import ToastContainer from '@/components/ui/ToastContainer.vue'
 
 const auth = useAuthStore()
+const pwa = usePwaStore()
 
 // Rehydrate the current user's profile on load if a token is already present
 // (persistent auth survives reloads).
 onMounted(() => {
+  pwa.init()
   if (auth.isAuthenticated && !auth.user) {
     auth.fetchMe()
   }

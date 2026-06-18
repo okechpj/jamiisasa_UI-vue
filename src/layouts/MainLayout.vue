@@ -1,15 +1,18 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { RouterView, RouterLink, useRoute, useRouter } from 'vue-router'
-import { Compass, Users, UserPlus, User, Plus, LogOut, Store, Briefcase, CalendarClock, CalendarCheck, IdCard, Inbox, Wallet } from 'lucide-vue-next'
+import { Compass, Users, UserPlus, User, Plus, LogOut, Store, Briefcase, CalendarClock, CalendarCheck, IdCard, Inbox, Wallet, X } from 'lucide-vue-next'
 
 import { useAuthStore } from '@/stores/auth.store'
+import { usePwaStore } from '@/stores/pwa.store'
+import { useToast } from '@/composables/useToast'
 import BaseAvatar from '@/components/ui/BaseAvatar.vue'
 import { resolveMediaUrl } from '@/lib/storage'
 
 const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
+const toast = useToast()
 
 const isProvider = computed(() => auth.role === 'provider' || auth.role === 'admin')
 
@@ -52,6 +55,59 @@ function onCreate() {
 function logout() {
   auth.logout()
   router.push({ name: 'login' })
+}
+
+const pwaStore = usePwaStore()
+
+const isStandalone = computed(() => {
+  return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true
+})
+
+const showModalLocal = ref(false)
+const isDismissedLocal = ref(false)
+
+const showPwaModal = computed(() => {
+  if (!auth.isAuthenticated) return false
+  if (isStandalone.value) return false
+  if (route.name !== 'feed') return false
+  if (!pwaStore.isInstallable) return false
+  if (!auth.justLoggedIn) return false
+  
+  return showModalLocal.value && !isDismissedLocal.value
+})
+
+watch(
+  () => auth.isAuthenticated,
+  (isAuth) => {
+    if (isAuth) {
+      showModalLocal.value = true
+    }
+  },
+  { immediate: true }
+)
+
+function dismissModal() {
+  isDismissedLocal.value = true
+  showModalLocal.value = false
+}
+
+const isiOS = () => {
+  return /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream
+}
+
+function installApp() {
+  if (pwaStore.isInstallable) {
+    pwaStore.triggerInstall()
+    dismissModal()
+  } else {
+    // Show manual installation instructions if it's not automatically installable
+    if (isiOS()) {
+      toast.info("Tap the Share button and select 'Add to Home Screen' to install.", 6000)
+    } else {
+      toast.info("Tap the browser menu (⋮) and select 'Add to Home Screen' to install.", 6000)
+    }
+    dismissModal()
+  }
 }
 </script>
 
@@ -173,5 +229,56 @@ function logout() {
         </RouterLink>
       </div>
     </nav>
+
+    <!-- PWA Install Modal Prompt -->
+    <Teleport to="body">
+      <div 
+        v-if="showPwaModal" 
+        class="fixed bottom-4 inset-x-4 md:left-auto md:right-6 md:bottom-6 md:w-96 bg-base border border-line rounded-2xl shadow-2xl p-5 z-50 animate-rise-fade"
+      >
+        <!-- Close button -->
+        <button 
+          type="button" 
+          @click="dismissModal" 
+          class="absolute top-4 right-4 text-muted hover:text-ink transition-colors p-1"
+          aria-label="Close install dialog"
+        >
+          <X class="h-4.5 w-4.5" />
+        </button>
+
+        <!-- App branding header info -->
+        <div class="flex items-start gap-3.5">
+          <span class="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-brand text-base font-bold text-white shadow-md">JS</span>
+          <div class="min-w-0 flex-1">
+            <h3 class="text-sm font-bold text-ink leading-snug">Install Jamii Sasa</h3>
+            <p class="text-xs text-muted mt-0.5">🤖 Mobile · Add to your home screen for quick access</p>
+          </div>
+        </div>
+
+        <!-- Quick instructions help block -->
+        <div class="mt-4 bg-surface rounded-xl p-3.5 text-xs text-muted leading-relaxed">
+          Tap "Install App" below, or tap the browser menu (⋮) and select "Add to Home Screen".
+        </div>
+
+        <!-- Action buttons -->
+        <div class="flex gap-2.5 mt-5">
+          <button 
+            type="button" 
+            @click="dismissModal"
+            class="flex-1 py-3 text-xs font-bold border border-line rounded-xl text-ink bg-base hover:bg-surface transition"
+          >
+            Not now
+          </button>
+          <button 
+            type="button" 
+            @click="installApp"
+            class="flex-1 py-3 text-xs font-bold rounded-xl text-white bg-[#d97706] hover:bg-[#b45309] shadow-sm transition flex items-center justify-center gap-1.5"
+          >
+            <Plus class="h-3.5 w-3.5 stroke-[3px]" />
+            Install App
+          </button>
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>

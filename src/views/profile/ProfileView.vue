@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
-import { AlertTriangle, Briefcase, CalendarClock, Inbox, Wallet } from 'lucide-vue-next'
+import { AlertTriangle, Briefcase, CalendarClock, Inbox, Wallet, X, Plus } from 'lucide-vue-next'
 import { RouterLink, useRouter } from 'vue-router'
 
 import * as authApi from '@/api/auth.api'
@@ -11,6 +11,7 @@ import * as connectionApi from '@/api/connection.api'
 import { useAuthStore } from '@/stores/auth.store'
 import { useConnectionStore } from '@/stores/connection.store'
 import { useToast } from '@/composables/useToast'
+import { usePwaStore } from '@/stores/pwa.store'
 import { relativeTime } from '@/lib/time'
 import { extractError } from '@/lib/errors'
 import { resolveMediaUrl } from '@/lib/storage'
@@ -31,6 +32,42 @@ const auth = useAuthStore()
 const connections = useConnectionStore()
 const toast = useToast()
 const router = useRouter()
+const pwaStore = usePwaStore()
+
+const isStandalone = computed(() => {
+  return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true
+})
+
+const showProfileCardLocal = ref(true)
+
+const showProfileInstallCard = computed(() => {
+  if (isStandalone.value) return false
+  if (!auth.isAuthenticated) return false
+  if (!isSelf.value) return false
+  return showProfileCardLocal.value
+})
+
+function dismissProfileCard() {
+  showProfileCardLocal.value = false
+}
+
+const isiOS = () => {
+  return /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream
+}
+
+function installAppFromProfile() {
+  if (pwaStore.isInstallable) {
+    pwaStore.triggerInstall()
+    dismissProfileCard()
+  } else {
+    if (isiOS()) {
+      toast.info("Tap the Share button and select 'Add to Home Screen' to install.", 6000)
+    } else {
+      toast.info("Tap the browser menu (⋮) and select 'Add to Home Screen' to install.", 6000)
+    }
+    dismissProfileCard()
+  }
+}
 
 const toText = (v) => (typeof v === 'string' ? v : '')
 
@@ -288,6 +325,50 @@ const providerQuickLinks = [
     </EmptyState>
 
     <template v-else-if="user">
+      <!-- PWA Inline Install Card -->
+      <div 
+        v-if="showProfileInstallCard" 
+        class="relative mb-4 rounded-card border border-line bg-base p-5 shadow-sm"
+      >
+        <!-- Close button -->
+        <button 
+          type="button" 
+          @click="dismissProfileCard" 
+          class="absolute top-4 right-4 text-muted hover:text-ink transition-colors p-1"
+          aria-label="Close install card"
+        >
+          <X class="h-4 w-4" />
+        </button>
+
+        <!-- App branding header info -->
+        <div class="flex items-center gap-3.5">
+          <span class="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-brand text-base font-bold text-white shadow-md">JS</span>
+          <div class="min-w-0 flex-1">
+            <h3 class="text-sm font-bold text-ink leading-snug">Install Jamii Sasa</h3>
+            <p class="text-xs text-muted mt-0.5">🤖 Mobile · Add to your home screen for quick access</p>
+          </div>
+        </div>
+
+        <!-- Action buttons -->
+        <div class="flex gap-2.5 mt-5">
+          <button 
+            type="button" 
+            @click="dismissProfileCard"
+            class="flex-1 py-3 text-xs font-bold border border-line rounded-xl text-ink bg-base hover:bg-surface transition"
+          >
+            Not now
+          </button>
+          <button 
+            type="button" 
+            @click="installAppFromProfile"
+            class="flex-1 py-3 text-xs font-bold rounded-xl text-white bg-[#d97706] hover:bg-[#b45309] shadow-sm transition flex items-center justify-center gap-1.5"
+          >
+            <Plus class="h-3.5 w-3.5 stroke-[3px]" />
+            Install App
+          </button>
+        </div>
+      </div>
+
       <ProfileHeader
         :user="user"
         :is-self="isSelf"

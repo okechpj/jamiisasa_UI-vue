@@ -1,15 +1,17 @@
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
-import { ArrowLeft } from 'lucide-vue-next'
+import { ArrowLeft, Smartphone, Check, X, Loader2 } from 'lucide-vue-next'
 
 import { useBookingStore } from '@/stores/booking.store'
 import { useToast } from '@/composables/useToast'
 import { getQuote } from '@/api/quote.api'
-import { initiateSTK, getPaymentStatus } from '@/api/payment.api'
+import { initiateSTK, getPaymentStatus, verifyPayment } from '@/api/payment.api'
 import { extractError } from '@/lib/errors'
 import { formatKES } from '@/lib/marketplace'
 import PaymentCard from '@/components/payment/PaymentCard.vue'
+import BaseModal from '@/components/ui/BaseModal.vue'
+import BaseButton from '@/components/ui/BaseButton.vue'
 
 const props = defineProps({
   bookingId: { type: String, required: true },
@@ -29,6 +31,25 @@ const loadError = ref('')
 const payState = ref('idle') // idle | sending | waiting | success | failed
 const payError = ref('')
 let pollTimer = null
+
+const showPaymentModal = computed(() => {
+  return payState.value === 'waiting' || payState.value === 'success' || payState.value === 'failed'
+})
+
+function closeModal() {
+  if (payState.value === 'failed') {
+    payState.value = 'idle'
+  }
+}
+
+function handleModalClose() {
+  closeModal()
+}
+
+function retryPayment() {
+  payError.value = ''
+  payState.value = 'idle'
+}
 
 // Amount is always from the backend (the accepted quote), never user input.
 const amount = computed(() => {
@@ -74,6 +95,26 @@ async function load() {
       quote.value = d
       services.value = Array.isArray(d.services) ? d.services : []
     }
+
+    // Attempt to resume polling if a payment is already pending/waiting
+    if (booking.value.status !== 'paid') {
+      try {
+        const p = await getPaymentStatus(props.bookingId)
+        if (p) {
+          payment.value = p
+          if (p.status === 'pending' && p.paystack_ref) {
+            payState.value = 'waiting'
+            startPolling(p.paystack_ref)
+          } else if (p.status === 'success') {
+            payState.value = 'success'
+          } else if (p.status === 'failed') {
+            payState.value = 'failed'
+          }
+        }
+      } catch (e) {
+        // No payment created yet
+      }
+    }
   } catch (e) {
     loadError.value = extractError(e, 'Could not load the booking.')
   } finally {
@@ -88,23 +129,28 @@ function stopPolling() {
   }
 }
 
-function startPolling() {
+function startPolling(reference) {
+  if (!reference) return
   stopPolling()
   pollTimer = setInterval(async () => {
     try {
-      const p = await getPaymentStatus(props.bookingId)
-      payment.value = p // Store payment data
-      if (p.status === 'success') {
+      const res = await verifyPayment(reference)
+      if (res.status === 'success') {
         payState.value = 'success'
         stopPolling()
         toast.success('Payment successful! Booking confirmed.')
-      } else if (p.status === 'failed') {
+        
+        // Auto-redirect to Chat (Order Tracking) after 3 seconds
+        setTimeout(() => {
+          router.push({ name: 'chat', params: { bookingId: props.bookingId } })
+        }, 3000)
+      } else if (res.status === 'failed') {
         payState.value = 'failed'
-        payError.value = 'Payment failed or was cancelled. Please try again.'
+        payError.value = 'Payment failed. Please try again.'
         stopPolling()
       }
     } catch {
-      // 404 until the payment row exists / transient — keep polling.
+      // Keep polling on transient errors or 404/pending responses.
     }
   }, 4000)
 }
@@ -113,9 +159,10 @@ async function onPay({ sender, email }) {
   payError.value = ''
   payState.value = 'sending'
   try {
-    await initiateSTK(props.bookingId, sender, email)
+    const p = await initiateSTK(props.bookingId, sender, email)
+    payment.value = p
     payState.value = 'waiting'
-    startPolling()
+    startPolling(p.paystack_ref)
   } catch (e) {
     payState.value = 'failed'
     payError.value = extractError(e, 'Could not start the payment.')
@@ -183,5 +230,76 @@ onBeforeUnmount(stopPolling)
         @pay="onPay" 
       />
     </div>
+
+    <!-- Payment Process Modal (STK sent, Success, or Failure) -->
+    <BaseModal :open="showPaymentModal" @close="handleModalClose">
+      <div class="flex flex-col items-center justify-center text-center px-4 py-8">
+        
+        <!-- Icon section -->
+        <!-- 1. STK Push Sent (waiting) -->
+        <div v-if="payState === 'waiting'" class="relative flex items-center justify-center w-20 h-20 bg-muted/20 border border-line rounded-2xl mx-auto mb-6">
+          <Smartphone class="h-10 w-10 text-ink" />
+          <span class="absolute bottom-2 right-2 w-3.5 h-3.5 bg-success border-2 border-base rounded-full"></span>
+        </div>
+
+        <!-- 2. Payment Confirmed (success) -->
+        <div v-else-if="payState === 'success'" class="relative flex items-center justify-center w-20 h-20 bg-success/10 border border-success/20 rounded-2xl mx-auto mb-6">
+          <Check class="h-10 w-10 text-success" />
+        </div>
+
+        <!-- 3. Payment Failed (failed) -->
+        <div v-else-if="payState === 'failed'" class="relative flex items-center justify-center w-20 h-20 bg-danger/10 border border-danger/20 rounded-2xl mx-auto mb-6">
+          <X class="h-10 w-10 text-danger" />
+        </div>
+
+        <!-- Heading & Paragraph section -->
+        <!-- 1. STK Push Sent -->
+        <template v-if="payState === 'waiting'">
+          <h2 class="text-xl font-bold text-ink mb-3">STK Push Sent</h2>
+          <p class="text-sm text-muted leading-relaxed max-w-sm mb-8">
+            We have initiated a transaction of <strong class="text-ink">{{ formatKES(amount) }}</strong> to your M-Pesa line. Please check your phone for the M-Pesa PIN prompt to authorize payment.
+          </p>
+          
+          <!-- Loading spinner status -->
+          <div class="flex items-center gap-2 text-sm font-semibold text-muted">
+            <Loader2 class="h-4 w-4 animate-spin text-muted" />
+            <span>Waiting for PIN verification...</span>
+          </div>
+        </template>
+
+        <!-- 2. Payment Confirmed -->
+        <template v-else-if="payState === 'success'">
+          <h2 class="text-xl font-bold text-ink mb-3">Payment Confirmed!</h2>
+          <p class="text-sm text-muted leading-relaxed max-w-sm mb-8">
+            Your payment of <strong class="text-ink">{{ formatKES(amount) }}</strong> has been successfully authorized and held securely in Jamii Escrow.
+          </p>
+          
+          <!-- Redirecting status -->
+          <div class="flex items-center gap-2 text-sm font-semibold text-muted">
+            <Loader2 class="h-4 w-4 animate-spin text-muted" />
+            <span>Redirecting to Order Tracking...</span>
+          </div>
+        </template>
+
+        <!-- 3. Payment Failed -->
+        <template v-else-if="payState === 'failed'">
+          <h2 class="text-xl font-bold text-ink mb-3">Payment Failed</h2>
+          <p class="text-sm text-muted leading-relaxed max-w-sm mb-8">
+            Your payment of <strong class="text-ink">{{ formatKES(amount) }}</strong> could not be authorized. Please check your balance or verify if you entered the correct PIN.
+          </p>
+          
+          <!-- Action Buttons for Retry -->
+          <div class="flex gap-3 w-full mt-2">
+            <BaseButton class="flex-1" variant="outline" @click="closeModal">
+              Close & Edit Number
+            </BaseButton>
+            <BaseButton class="flex-1" @click="retryPayment">
+              Retry Payment
+            </BaseButton>
+          </div>
+        </template>
+
+      </div>
+    </BaseModal>
   </section>
 </template>

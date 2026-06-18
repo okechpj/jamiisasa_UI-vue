@@ -21,3 +21,16 @@ export async function getPaymentStatus(bookingId) {
   const { data } = await client.get(`/api/v1/payments/booking/${bookingId}`)
   return data
 }
+
+// GET /api/v1/payments/verify/:reference -> verify payment status (success, failed, pending)
+export async function verifyPayment(reference) {
+  try {
+    const { data } = await client.get(`/api/v1/payments/verify/${reference}`)
+    return data
+  } catch (error) {
+    if (error.response && error.response.status === 402) {
+      return error.response.data
+    }
+    throw error
+  }
+}

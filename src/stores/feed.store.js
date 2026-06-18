@@ -101,15 +101,7 @@ export const useFeedStore = defineStore('feed', () => {
     },
   )
 
-  // keep posts in sync when the current user's profile (avatar) changes
-  // so that the feed reflects new profile pictures immediately.
-  if (auth) {
-    // watch is a composition API method only in components; use a simple
-    // reactive getter via computed effect by leveraging auth.user reference
-    // updates elsewhere in the app will cause this code path to run when
-    // loadFeed is called or auth.fetchMe is invoked; to be safe, expose a
-    // helper to refresh post avatars after profile update.
-  }
+
 
   // --- Getters -------------------------------------------------------------
   const categoryFiltered = computed(() => {

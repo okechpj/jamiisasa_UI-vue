@@ -89,7 +89,10 @@ async function load() {
       loadError.value = 'Booking not found.'
       return
     }
-    if (booking.value.status === 'paid') payState.value = 'success'
+    if (booking.value.status === 'paid') {
+      router.push({ name: 'booking-review', params: { bookingId: props.bookingId } })
+      return
+    }
     if (booking.value.acceptedQuoteId) {
       const d = await getQuote(booking.value.acceptedQuoteId)
       quote.value = d
@@ -106,7 +109,8 @@ async function load() {
             payState.value = 'waiting'
             startPolling(p.paystack_ref)
           } else if (p.status === 'success') {
-            payState.value = 'success'
+            router.push({ name: 'booking-review', params: { bookingId: props.bookingId } })
+            return
           } else if (p.status === 'failed') {
             payState.value = 'failed'
           }
@@ -140,10 +144,10 @@ function startPolling(reference) {
         stopPolling()
         toast.success('Payment successful! Booking confirmed.')
         
-        // Auto-redirect to Chat (Order Tracking) after 3 seconds
+        // Auto-redirect to Review Page after 1 second
         setTimeout(() => {
-          router.push({ name: 'chat', params: { bookingId: props.bookingId } })
-        }, 3000)
+          router.push({ name: 'booking-review', params: { bookingId: props.bookingId } })
+        }, 1000)
       } else if (res.status === 'failed') {
         payState.value = 'failed'
         payError.value = 'Payment failed. Please try again.'
@@ -277,7 +281,7 @@ onBeforeUnmount(stopPolling)
           <!-- Redirecting status -->
           <div class="flex items-center gap-2 text-sm font-semibold text-muted">
             <Loader2 class="h-4 w-4 animate-spin text-muted" />
-            <span>Redirecting to Order Tracking...</span>
+            <span>Redirecting to Review Page...</span>
           </div>
         </template>
 

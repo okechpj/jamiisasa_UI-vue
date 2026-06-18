@@ -1,15 +1,18 @@
 import apiClient from './client'
 
-const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp']
-const MAX_SIZE = 20 * 1024 * 1024
+const ALLOWED_TYPES = [
+  'image/jpeg', 'image/png', 'image/webp',
+  'video/mp4', 'video/webm', 'video/quicktime'
+]
+const MAX_SIZE = 50 * 1024 * 1024
 
 function validateImageFile(file) {
   if (!file) throw new Error('No file selected')
   if (!ALLOWED_TYPES.includes(file.type)) {
-    throw new Error('Only JPEG, PNG, and WebP images allowed')
+    throw new Error('Only JPEG, PNG, WebP images and MP4, WebM, Quicktime videos are allowed')
   }
   if (file.size > MAX_SIZE) {
-    throw new Error('Image must be less than 20MB')
+    throw new Error('File must be less than 50MB')
   }
 }
 

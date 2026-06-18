@@ -66,6 +66,13 @@ const routes = [
         component: () => import('@/views/bookings/MyBookingsView.vue'),
         meta: { requiresAuth: true },
       },
+      {
+        path: 'bookings/:bookingId/review',
+        name: 'booking-review',
+        component: () => import('@/views/bookings/BookingReviewView.vue'),
+        props: true,
+        meta: { requiresAuth: true },
+      },
 
       // --- Chat & quote negotiation (per booking) ---
       {

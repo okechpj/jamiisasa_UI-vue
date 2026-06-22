@@ -133,7 +133,15 @@ const routes = [
       { path: 'login', name: 'login', component: () => import('@/views/auth/LoginView.vue') },
       { path: 'register', name: 'register', component: () => import('@/views/auth/RegisterView.vue') },
       { path: 'register-provider', name: 'register-provider', component: () => import('@/views/auth/RegisterProviderView.vue') },
+      { path: 'forgot-password', name: 'forgot-password', component: () => import('@/views/auth/ForgotPasswordView.vue') },
+      { path: 'reset-password', name: 'reset-password', component: () => import('@/views/auth/ResetPasswordView.vue') },
     ],
+  },
+  {
+    path: '/onboarding',
+    name: 'onboarding',
+    component: () => import('@/views/auth/OnboardingView.vue'),
+    meta: { requiresAuth: true },
   },
   {
     path: '/:pathMatch(.*)*',
@@ -157,13 +165,25 @@ router.beforeEach((to) => {
     return { name: 'login', query: { redirect: to.fullPath } }
   }
 
-  if ((to.name === 'login' || to.name === 'register') && auth.isAuthenticated) {
-    return { name: 'feed' }
-  }
+  if (auth.isAuthenticated) {
+    const userId = auth.userId || 'guest'
+    const hasCompleted = localStorage.getItem(`onboarding_completed_${userId}`) === 'true'
 
-  // Role-gated routes (e.g. the provider dashboard) — send disallowed users home.
-  if (Array.isArray(to.meta.roles) && !to.meta.roles.includes(auth.role)) {
-    return { name: 'feed' }
+    if (!hasCompleted && to.name !== 'onboarding' && to.name !== 'logout') {
+      return { name: 'onboarding' }
+    }
+    if (hasCompleted && to.name === 'onboarding') {
+      return { name: 'feed' }
+    }
+
+    if ((to.name === 'login' || to.name === 'register') && auth.isAuthenticated) {
+      return { name: 'feed' }
+    }
+
+    // Role-gated routes (e.g. the provider dashboard) — send disallowed users home.
+    if (Array.isArray(to.meta.roles) && !to.meta.roles.includes(auth.role)) {
+      return { name: 'feed' }
+    }
   }
 
   return true

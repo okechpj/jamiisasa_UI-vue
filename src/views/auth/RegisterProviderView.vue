@@ -33,8 +33,9 @@ const localError = ref('')
 async function onSubmit() {
   localError.value = ''
 
-  if (form.password.length < 6) {
-    localError.value = 'Password must be at least 6 characters.'
+  const passwordRegex = /^(?=.*[A-Za-z])(?=.*\d).{8,}$/
+  if (!passwordRegex.test(form.password)) {
+    localError.value = 'Weak password, use a stronger password'
     return
   }
   if (form.password !== confirm.value) {
@@ -62,6 +63,7 @@ async function onSubmit() {
   })
 
   if (!ok) {
+    localError.value = auth.error || 'Could not create provider account.'
     toast.error(auth.error || 'Could not create provider account.')
     return
   }
@@ -75,10 +77,10 @@ async function onSubmit() {
 
   if (profileOk) {
     toast.success('Welcome! Your provider profile was created successfully.')
-    router.push({ name: 'provider-profile' })
+    router.push({ name: 'onboarding' })
   } else {
     toast.warning('Account created, but we could not set up your profile details. Please update them here.')
-    router.push({ name: 'provider-profile' })
+    router.push({ name: 'onboarding' })
   }
 }
 </script>
@@ -106,8 +108,8 @@ async function onSubmit() {
         </div>
 
         <div class="grid grid-cols-2 gap-3">
-          <BaseInput v-model="form.password" label="Password" type="password" autocomplete="new-password" required />
-          <BaseInput v-model="confirm" label="Confirm password" type="password" autocomplete="new-password" required />
+          <BaseInput v-model="form.password" label="Password" type="password" autocomplete="new-password" hint="At least 8 chars with a letter & digit." required />
+          <BaseInput v-model="confirm" label="Confirm password" type="password" autocomplete="new-password" :error="localError" required />
         </div>
       </fieldset>
 

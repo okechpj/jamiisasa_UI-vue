@@ -122,7 +122,7 @@ function installApp() {
       <!-- Desktop left sidebar -->
       <aside class="sticky top-0 hidden h-dvh w-60 shrink-0 flex-col overflow-y-auto py-6 md:flex">
         <RouterLink :to="{ name: 'feed' }" class="mb-8 flex items-center gap-2 px-2">
-          <span class="grid h-9 w-9 place-items-center rounded-xl bg-brand text-sm font-bold text-white">JS</span>
+          <img src="/icon-192.png" alt="Logo" class="h-9 w-9 rounded-xl object-contain bg-base shadow-sm border border-line" />
           <span class="text-lg font-bold tracking-tight text-ink">Jamii Sasa</span>
         </RouterLink>
 
@@ -248,7 +248,7 @@ function installApp() {
 
         <!-- App branding header info -->
         <div class="flex items-start gap-3.5">
-          <span class="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-brand text-base font-bold text-white shadow-md">JS</span>
+          <img src="/icon-192.png" alt="Logo" class="h-12 w-12 shrink-0 rounded-xl object-contain bg-base shadow-md border border-line" />
           <div class="min-w-0 flex-1">
             <h3 class="text-sm font-bold text-ink leading-snug">Install Jamii Sasa</h3>
             <p class="text-xs text-muted mt-0.5">🤖 Mobile · Add to your home screen for quick access</p>

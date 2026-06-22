@@ -106,9 +106,7 @@ onMounted(async () => {
       >
         <ArrowLeft class="h-5 w-5" />
       </button>
-      <div class="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-brand/10 text-sm font-bold text-brand">
-        JS
-      </div>
+      <img src="/icon-192.png" alt="Logo" class="h-10 w-10 shrink-0 rounded-full object-contain bg-base border border-line" />
       <div class="min-w-0 flex-1">
         <h1 class="truncate text-sm font-bold text-ink">Chat &amp; Negotiation</h1>
         <p class="truncate text-xs text-muted">Booking #{{ bookingId.slice(0, 8) }}</p>

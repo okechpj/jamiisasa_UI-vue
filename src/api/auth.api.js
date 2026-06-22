@@ -1,18 +1,6 @@
 import client from './client'
 
-/* auth.api.js — registration, login, and current/other user profiles. */
-
-// POST /auth/register -> { message }  (no token; caller logs in afterwards)
-export async function register(payload) {
-  const { data } = await client.post('/auth/register', payload)
-  return data
-}
-
-// POST /auth/login -> { token }
-export async function login(payload) {
-  const { data } = await client.post('/auth/login', payload)
-  return data
-}
+/* auth.api.js — profile management API requests. Authentication is handled by Firebase SDK. */
 
 // GET /api/v1/me -> User (the authenticated user's full profile)
 export async function me() {

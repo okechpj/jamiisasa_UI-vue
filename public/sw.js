@@ -1,4 +1,4 @@
-const CACHE_NAME = 'jamii-sasa-v1'
+const CACHE_NAME = 'jamii-sasa-v6'
 const ASSETS = [
   '/',
   '/index.html',

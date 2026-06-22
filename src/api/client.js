@@ -17,11 +17,18 @@ const client = axios.create({
   },
 })
 
+import { firebaseAuth } from '@/firestore'
+
 // --- Request: attach the bearer token automatically -----------------------
-client.interceptors.request.use((config) => {
-  const token = getToken()
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`
+client.interceptors.request.use(async (config) => {
+  const user = firebaseAuth.currentUser
+  if (user) {
+    try {
+      const token = await user.getIdToken()
+      config.headers.Authorization = `Bearer ${token}`
+    } catch (e) {
+      console.error('Failed to get Firebase token', e)
+    }
   }
   return config
 })

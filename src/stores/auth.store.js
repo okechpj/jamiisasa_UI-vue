@@ -1,19 +1,23 @@
 import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
+import { 
+  signInWithEmailAndPassword, 
+  createUserWithEmailAndPassword, 
+  signOut, 
+  sendPasswordResetEmail, 
+  confirmPasswordReset, 
+  GoogleAuthProvider, 
+  signInWithPopup,
+  onAuthStateChanged
+} from 'firebase/auth'
 
+import { firebaseAuth } from '@/firestore'
 import * as authApi from '@/api/auth.api'
 import { useLocation } from '@/composables/useLocation'
 import { decodeJwt, isExpired } from '@/lib/jwt'
 import { getToken, setToken, clearToken } from '@/lib/token'
 import { extractError } from '@/lib/errors'
 
-/*
- * auth.store — JWT session + the current user's profile.
- *
- * The token carries only user_id + role, so the full profile (name, email,
- * username) is fetched from GET /api/v1/me and cached here. Auth is persistent:
- * the token is read from localStorage on init and survives reloads.
- */
 export const useAuthStore = defineStore('auth', () => {
   // --- State ---------------------------------------------------------------
   const token = ref(getToken())
@@ -22,11 +26,21 @@ export const useAuthStore = defineStore('auth', () => {
   const error = ref('')
   const justLoggedIn = ref(false)
 
-  // Drop a stale token on init so guards see the real auth state immediately.
-  if (token.value && isExpired(token.value)) {
-    clearToken()
-    token.value = ''
-  }
+  // Listen to Firebase Auth state changes
+  onAuthStateChanged(firebaseAuth, async (fbUser) => {
+    if (fbUser) {
+      try {
+        const idToken = await fbUser.getIdToken()
+        setSession(idToken)
+        await fetchMe()
+      } catch (e) {
+        console.error('Error syncing auth state:', e)
+        clearSession()
+      }
+    } else {
+      clearSession()
+    }
+  })
 
   // --- Getters -------------------------------------------------------------
   const claims = computed(() => (token.value ? decodeJwt(token.value) : null))
@@ -59,15 +73,11 @@ export const useAuthStore = defineStore('auth', () => {
     error.value = ''
     loading.value = true
     try {
-      const { token: jwt } = await authApi.login({ email, password })
-      if (!jwt) throw new Error('no token')
-      setSession(jwt)
-      await fetchMe()
+      await signInWithEmailAndPassword(firebaseAuth, email, password)
       justLoggedIn.value = true
       // Best-effort: capture browser location for all users (non-blocking).
       try {
         const loc = useLocation()
-        // do not await — keep login fast; composable handles failures.
         loc.refreshLocation().catch(() => {
           /* ignore */
         })
@@ -84,13 +94,32 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  // Register, then log in immediately (the backend issues no token on register).
+  // Register, then log in immediately
   async function register(payload) {
     error.value = ''
     loading.value = true
     try {
-      await authApi.register(payload)
-      return await login(payload.email, payload.password)
+      // 1. Create user in Firebase Auth
+      const cred = await createUserWithEmailAndPassword(firebaseAuth, payload.email, payload.password)
+      const idToken = await cred.user.getIdToken()
+      setSession(idToken)
+
+      // 2. Fetch profile from Go backend (which triggers backend middleware user sync)
+      await fetchMe()
+
+      // 3. Update profile fields (first name, last name, phone number) on backend
+      await authApi.updateProfile({
+        first_name: payload.first_name,
+        last_name: payload.last_name,
+        username: payload.username,
+        phone_number: payload.phone_number,
+      })
+
+      // 4. Refetch final profile
+      await fetchMe()
+      
+      justLoggedIn.value = true
+      return true
     } catch (e) {
       error.value = extractError(e, 'Could not create your account.')
       return false
@@ -123,7 +152,66 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  function logout() {
+  async function loginWithGoogle() {
+    error.value = ''
+    loading.value = true
+    try {
+      const provider = new GoogleAuthProvider()
+      provider.setCustomParameters({ prompt: 'select_account' })
+      await signInWithPopup(firebaseAuth, provider)
+      justLoggedIn.value = true
+      try {
+        const loc = useLocation()
+        loc.refreshLocation().catch(() => {
+          /* ignore */
+        })
+      } catch (e) {
+        /* ignore */
+      }
+      return true
+    } catch (e) {
+      error.value = extractError(e, 'Google login failed.')
+      clearSession()
+      return false
+    } finally {
+      loading.value = false
+    }
+  }
+
+  async function forgotPassword(email) {
+    error.value = ''
+    loading.value = true
+    try {
+      await sendPasswordResetEmail(firebaseAuth, email)
+      return true
+    } catch (e) {
+      error.value = extractError(e, 'Could not send reset password email.')
+      return false
+    } finally {
+      loading.value = false
+    }
+  }
+
+  async function resetPassword(actionCode, newPassword) {
+    error.value = ''
+    loading.value = true
+    try {
+      await confirmPasswordReset(firebaseAuth, actionCode, newPassword)
+      return true
+    } catch (e) {
+      error.value = extractError(e, 'Password reset failed.')
+      return false
+    } finally {
+      loading.value = false
+    }
+  }
+
+  async function logout() {
+    try {
+      await signOut(firebaseAuth)
+    } catch (e) {
+      console.error('Firebase logout error:', e)
+    }
     clearSession()
   }
 
@@ -142,7 +230,10 @@ export const useAuthStore = defineStore('auth', () => {
     displayName,
     // actions
     login,
+    loginWithGoogle,
     register,
+    forgotPassword,
+    resetPassword,
     fetchMe,
     updateProfile,
     logout,

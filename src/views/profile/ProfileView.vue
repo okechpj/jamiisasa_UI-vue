@@ -342,7 +342,7 @@ const providerQuickLinks = [
 
         <!-- App branding header info -->
         <div class="flex items-center gap-3.5">
-          <span class="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-brand text-base font-bold text-white shadow-md">JS</span>
+          <img src="/icon-192.png" alt="Logo" class="h-12 w-12 shrink-0 rounded-xl object-contain bg-base shadow-md border border-line" />
           <div class="min-w-0 flex-1">
             <h3 class="text-sm font-bold text-ink leading-snug">Install Jamii Sasa</h3>
             <p class="text-xs text-muted mt-0.5">🤖 Mobile · Add to your home screen for quick access</p>

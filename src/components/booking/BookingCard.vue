@@ -87,7 +87,7 @@ const canCancel = computed(
         </BaseButton>
       </template>
 
-      <!-- Customer cancel -->
+      <!-- Customer cancel booking -->
       <BaseButton
         v-else-if="canCancel"
         size="sm"

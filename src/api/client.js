@@ -21,6 +21,7 @@ import { firebaseAuth } from '@/firestore'
 
 // --- Request: attach the bearer token automatically -----------------------
 client.interceptors.request.use(async (config) => {
+  await firebaseAuth.authStateReady()
   const user = firebaseAuth.currentUser
   if (user) {
     try {

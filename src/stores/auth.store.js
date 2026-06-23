@@ -8,7 +8,7 @@ import {
   confirmPasswordReset, 
   GoogleAuthProvider, 
   signInWithPopup,
-  onAuthStateChanged
+  onIdTokenChanged
 } from 'firebase/auth'
 
 import { firebaseAuth } from '@/firestore'
@@ -26,8 +26,8 @@ export const useAuthStore = defineStore('auth', () => {
   const error = ref('')
   const justLoggedIn = ref(false)
 
-  // Listen to Firebase Auth state changes
-  onAuthStateChanged(firebaseAuth, async (fbUser) => {
+  // Listen to Firebase Auth state and token changes
+  onIdTokenChanged(firebaseAuth, async (fbUser) => {
     if (fbUser) {
       try {
         const idToken = await fbUser.getIdToken()

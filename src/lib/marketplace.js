@@ -42,12 +42,12 @@ export function todayYMD() {
 
 // Booking status → display label + badge variant.
 export const BOOKING_STATUS = {
-  pending: { label: 'Pending', variant: 'warning' },
-  pending_quote: { label: 'Awaiting quote', variant: 'warning' },
+  pending: { label: 'Pending booking', variant: 'warning' },
+  pending_quote: { label: 'Pending booking', variant: 'warning' },
   quoted: { label: 'Quote sent', variant: 'brand' },
-  accepted: { label: 'Accepted', variant: 'brand' },
+  accepted: { label: 'Accepted booking', variant: 'brand' },
   paid: { label: 'Paid', variant: 'success' },
-  completed_unpaid: { label: 'Completed · Unpaid', variant: 'warning' },
+  completed_unpaid: { label: 'Payment pending', variant: 'warning' },
   completed: { label: 'Completed', variant: 'success' },
   declined: { label: 'Declined', variant: 'danger' },
   cancelled: { label: 'Cancelled', variant: 'neutral' },

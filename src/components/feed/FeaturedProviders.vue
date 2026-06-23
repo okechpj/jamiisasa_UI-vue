@@ -22,7 +22,7 @@ const featured = computed(() => providers.value.slice(0, 8))
 <template>
   <section v-if="loading || featured.length" class="mb-6">
     <div class="mb-3 flex items-center justify-between">
-      <h2 class="text-lg font-bold text-ink">Book with Confidence</h2>
+      <h2 class="text-lg font-bold text-ink">See Providers around you</h2>
       <RouterLink :to="{ name: 'marketplace-providers' }" class="inline-flex items-center gap-1 text-sm font-semibold text-brand-light">
         View all <ArrowRight class="h-4 w-4" />
       </RouterLink>

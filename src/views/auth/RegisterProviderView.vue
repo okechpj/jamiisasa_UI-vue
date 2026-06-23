@@ -42,6 +42,14 @@ async function onSubmit() {
     localError.value = 'Passwords do not match.'
     return
   }
+  
+  const phone = form.phone_number.trim()
+  const phoneRegex = /^(?:254|\+254|0)?(7|1)\d{8}$/
+  if (phone && !phoneRegex.test(phone)) {
+    localError.value = 'Please enter a valid phone number (e.g. 07XXXXXXXX).'
+    return
+  }
+
   if (!form.businessName.trim()) {
     localError.value = 'Business name is required.'
     return
@@ -76,10 +84,11 @@ async function onSubmit() {
   })
 
   if (profileOk) {
+    await auth.fetchMe()
     toast.success('Welcome! Your provider profile was created successfully.')
     router.push({ name: 'onboarding' })
   } else {
-    toast.warning('Account created, but we could not set up your profile details. Please update them here.')
+    toast.info('Account created, but we could not set up your profile details. Please update them here.')
     router.push({ name: 'onboarding' })
   }
 }
@@ -122,7 +131,7 @@ async function onSubmit() {
           <BaseInput v-model="form.location" label="Location of operation" placeholder="e.g. Kilimani, Nairobi" required />
         </div>
 
-        <BaseTextarea v-model="form.description" label="Describe your services" placeholder="Describe the cleaning, AirBnB management, or post-construction cleaning services you offer..." required rows="3" />
+        <BaseTextarea v-model="form.description" label="Describe your services" placeholder="Describe the cleaning, AirBnB management, or post-construction cleaning services you offer..." required :rows="3" />
       </fieldset>
 
       <p v-if="localError" class="text-sm text-danger mt-1">{{ localError }}</p>

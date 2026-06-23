@@ -44,8 +44,8 @@ export const useAuthStore = defineStore('auth', () => {
 
   // --- Getters -------------------------------------------------------------
   const claims = computed(() => (token.value ? decodeJwt(token.value) : null))
-  const userId = computed(() => (claims.value && claims.value.user_id) || '')
-  const role = computed(() => (claims.value && claims.value.role) || '')
+  const userId = computed(() => (user.value && user.value.id) || (claims.value && claims.value.user_id) || '')
+  const role = computed(() => (user.value && user.value.role) || (claims.value && claims.value.role) || '')
   const isAuthenticated = computed(() => Boolean(token.value) && !isExpired(token.value))
 
   const displayName = computed(() => {

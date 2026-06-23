@@ -48,6 +48,13 @@ async function onSubmit() {
     return
   }
 
+  const phone = form.phone_number.trim()
+  const phoneRegex = /^(?:254|\+254|0)?(7|1)\d{8}$/
+  if (phone && !phoneRegex.test(phone)) {
+    localError.value = 'Please enter a valid phone number (e.g. 07XXXXXXXX).'
+    return
+  }
+
   // register() also logs in (the backend issues no token on register).
   const ok = await auth.register({
     ...form,

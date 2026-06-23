@@ -54,6 +54,13 @@ const routes = [
         meta: { requiresAuth: true },
       },
       {
+        path: 'marketplace/services/:id',
+        name: 'service-details',
+        component: () => import('@/views/marketplace/ServiceDetailsView.vue'),
+        props: true,
+        meta: { requiresAuth: true },
+      },
+      {
         path: 'marketplace/booking/:providerId/:serviceId',
         name: 'booking',
         component: () => import('@/views/marketplace/BookingView.vue'),

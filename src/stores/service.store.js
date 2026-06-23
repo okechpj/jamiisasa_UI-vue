@@ -42,10 +42,28 @@ export const useServiceStore = defineStore('service', () => {
   const myServices = ref([])
   const providerServices = ref([])
   const marketplaceServices = ref([]) // all services across providers (customer browse)
+  const currentService = ref(null)
 
   const loading = ref(false)
   const saving = ref(false)
   const error = ref('')
+
+  // Fetch a single service by ID
+  async function fetchService(id) {
+    error.value = ''
+    loading.value = true
+    currentService.value = null
+    try {
+      const raw = await serviceApi.getService(id)
+      currentService.value = mapListing(raw)
+      return currentService.value
+    } catch (e) {
+      error.value = extractError(e, 'Could not load service details.')
+      return null
+    } finally {
+      loading.value = false
+    }
+  }
 
   // Aggregate every provider's services into one browseable list. There's no
   // "list all services" endpoint, so we list providers then fetch each one's
@@ -152,9 +170,11 @@ export const useServiceStore = defineStore('service', () => {
     myServices,
     providerServices,
     marketplaceServices,
+    currentService,
     loading,
     saving,
     error,
+    fetchService,
     fetchMarketplaceServices,
     fetchMyServices,
     createService,

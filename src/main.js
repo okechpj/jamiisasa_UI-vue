@@ -20,14 +20,45 @@ app.use(router)
 
 app.mount('#app')
 
-if (import.meta.env.PROD && 'serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js')
-      .then((reg) => {
-        console.log('Service Worker registered successfully:', reg.scope)
-      })
-      .catch((err) => {
-        console.error('Service Worker registration failed:', err)
-      })
+// Service worker and PWA caching can cause users to see stale builds after
+// deployments. By default we *unregister* any existing service worker and
+// clear stale caches unless the environment explicitly enables the SW via
+// `VITE_ENABLE_SW=true`.
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', async () => {
+    try {
+      const enabled = import.meta.env.VITE_ENABLE_SW === 'true'
+      const reg = await navigator.serviceWorker.getRegistration('/sw.js')
+      if (enabled) {
+        if (!reg) {
+          await navigator.serviceWorker.register('/sw.js')
+          console.log('Service Worker registered (enabled by env)')
+        } else {
+          console.log('Service Worker already registered')
+        }
+      } else {
+        // Unregister any existing service worker and clear caches to avoid
+        // serving stale assets after a deployment.
+        if (reg) {
+          try {
+            await reg.unregister()
+            console.log('Service Worker unregistered to prevent stale caching')
+          } catch (e) {
+            console.warn('Failed to unregister service worker', e)
+          }
+        }
+        if ('caches' in window) {
+          try {
+            const keys = await caches.keys()
+            await Promise.all(keys.map((k) => caches.delete(k)))
+            console.log('Cleared service worker caches')
+          } catch (e) {
+            console.warn('Failed to clear caches', e)
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Service Worker handling failed:', err)
+    }
   })
 }

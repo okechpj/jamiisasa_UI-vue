@@ -118,6 +118,7 @@ const routes = [
         component: () => import('@/views/provider/AvailabilityView.vue'),
         meta: { requiresAuth: true, roles: ['admin', 'provider'] },
       },
+
       {
         path: 'provider/bookings',
         name: 'provider-bookings',

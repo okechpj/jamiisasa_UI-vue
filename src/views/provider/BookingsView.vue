@@ -51,14 +51,16 @@ async function onComplete(id) {
   const ok = await store.complete(id)
   if (ok) {
     toast.success('Order marked as completed.')
-    // Find the completed booking
-    const booking = store.providerBookings.find(b => b.id === id)
+    // Refresh lists and update the modal's booking so the "Prompt Client For Payment"
+    // action becomes available without navigating the provider elsewhere.
+    await store.fetchProviderBookings()
+    await store.fetchMyBookings()
+    const booking = store.providerBookings.find((b) => b.id === id) || store.myBookings.find((b) => b.id === id)
     if (booking) {
+      statusBooking.value = booking
+      statusOpen.value = true
+    } else {
       statusOpen.value = false
-      // Navigate to checkout after a brief delay
-      setTimeout(() => {
-        router.push({ name: 'checkout', params: { bookingId: id } })
-      }, 500)
     }
   } else {
     toast.error(store.error || 'Could not complete the booking.')

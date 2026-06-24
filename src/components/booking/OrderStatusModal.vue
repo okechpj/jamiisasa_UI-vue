@@ -6,6 +6,8 @@ import { Check, Clock, CalendarClock, User } from 'lucide-vue-next'
 import BaseModal from '@/components/ui/BaseModal.vue'
 import BaseBadge from '@/components/ui/BaseBadge.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
+import { useBookingStore } from '@/stores/booking.store'
+import { useToast } from '@/composables/useToast'
 import {
   bookingStatus,
   formatDate,
@@ -24,8 +26,16 @@ const props = defineProps({
 
 const emit = defineEmits(['update:open', 'complete'])
 const router = useRouter()
+const bookingStore = useBookingStore()
+const toast = useToast()
 
-const b = computed(() => props.booking || {})
+// Retrieve the most up-to-date booking from the Pinia store lists to maintain reactivity.
+const b = computed(() => {
+  if (!props.booking) return {}
+  const list = props.perspective === 'provider' ? bookingStore.providerBookings : bookingStore.myBookings
+  return list.find((item) => item.id === props.booking.id) || props.booking
+})
+
 const status = computed(() => bookingStatus(b.value.status))
 const cancelled = computed(() => isCancelledBooking(b.value.status))
 const currentStep = computed(() => orderStepIndex(b.value.status))
@@ -34,22 +44,12 @@ const counterpartyRole = computed(() => (props.perspective === 'provider' ? 'Cus
 const dateLabel = computed(() => formatDate(b.value.bookingDate))
 const totalDue = computed(() => (b.value.amount != null ? formatKES(b.value.amount) : 'Awaiting quote'))
 
-// The customer can pay once a quote is accepted (amount set) and it isn't paid.
-const canPay = computed(
-  () =>
-    props.perspective === 'customer' &&
-    b.value.status === 'completed_unpaid' &&
-    b.value.amount != null,
-)
-
 // Provider can complete order when status is 'accepted'
-const canComplete = computed(
-  () => props.perspective === 'provider' && b.value.status === 'accepted',
-)
+const canComplete = computed(() => props.perspective === 'provider' && b.value.status === 'accepted')
+const canPromptPayment = computed(() => props.perspective === 'provider' && b.value.status === 'completed_unpaid')
 
 function handleComplete() {
   emit('complete', b.value.id)
-  emit('update:open', false)
 }
 
 function handlePayment() {
@@ -77,11 +77,58 @@ function stopClock() {
   }
 }
 
+// --- Customer Polling & Auto-redirect -------------------------------------
+let customerPollTimer = null
+
+function startCustomerPolling() {
+  stopCustomerPolling()
+  if (props.perspective === 'customer' && b.value.status === 'completed_unpaid') {
+    customerPollTimer = setInterval(async () => {
+      try {
+        await bookingStore.fetchMyBookings()
+      } catch (e) {
+        // ignore
+      }
+    }, 4000)
+  }
+}
+
+function stopCustomerPolling() {
+  if (customerPollTimer) {
+    clearInterval(customerPollTimer)
+    customerPollTimer = null
+  }
+}
+
 watch(
   () => props.open,
-  (isOpen) => (isOpen ? startClock() : stopClock()),
+  (isOpen) => {
+    if (isOpen) {
+      startClock()
+      startCustomerPolling()
+    } else {
+      stopClock()
+      stopCustomerPolling()
+    }
+  },
 )
-onBeforeUnmount(stopClock)
+
+watch(
+  () => b.value.status,
+  (newStatus) => {
+    if (newStatus === 'paid' && props.perspective === 'customer') {
+      stopCustomerPolling()
+      emit('update:open', false)
+      router.push({ name: 'booking-review', params: { bookingId: b.value.id } })
+      toast.success('Payment successful! Redirecting to review page.')
+    }
+  }
+)
+
+onBeforeUnmount(() => {
+  stopClock()
+  stopCustomerPolling()
+})
 
 function humanDuration(ms) {
   const total = Math.floor(ms / 1000)
@@ -184,38 +231,44 @@ const eta = computed(() => {
         <BaseBadge :variant="status.variant">{{ status.label }}</BaseBadge>
       </div>
 
-        <!-- Customer location (provider view after acceptance) -->
-        <div v-if="props.perspective === 'provider' && b.status === 'accepted' && b.locationAddress" class="mt-3 rounded-card border border-line bg-surface px-3 py-2">
-          <p class="text-[11px] font-semibold uppercase tracking-wide text-muted">Customer Location</p>
-          <p class="text-sm font-medium text-ink">{{ b.locationAddress }}</p>
-          <div class="mt-2">
-            <a :href="b.googleMapsUrl" target="_blank" rel="noopener" class="inline-flex items-center gap-2 text-sm font-semibold text-brand">Open in Google Maps</a>
-          </div>
+      <!-- Customer location (provider view after acceptance) -->
+      <div v-if="props.perspective === 'provider' && b.status === 'accepted' && b.locationAddress" class="mt-3 rounded-card border border-line bg-surface px-3 py-2">
+        <p class="text-[11px] font-semibold uppercase tracking-wide text-muted">Customer Location</p>
+        <p class="text-sm font-medium text-ink">{{ b.locationAddress }}</p>
+        <div class="mt-2">
+          <a :href="b.googleMapsUrl" target="_blank" rel="noopener" class="inline-flex items-center gap-2 text-sm font-semibold text-brand">Open in Google Maps</a>
         </div>
-
-      <!-- Total due -->
-      <div class="flex items-center justify-between rounded-card bg-surface px-4 py-3">
-        <span class="text-sm text-muted">Total amount due</span>
-        <span class="text-lg font-extrabold text-ink">{{ totalDue }}</span>
       </div>
 
-      <!-- Complete order (provider, accepted) -->
-      <BaseButton
-        v-if="canComplete"
-        @click="handleComplete"
-        class="w-full"
-      >
-        Complete Order
-      </BaseButton>
+      <!-- Total due or redirect to checkout -->
+      <div v-if="b.status === 'completed_unpaid'">
+        <!-- Total due -->
+        <div class="flex items-center justify-between rounded-card bg-surface px-4 py-3 mb-4">
+          <span class="text-sm text-muted">Total amount due</span>
+          <span class="text-lg font-extrabold text-ink">{{ totalDue }}</span>
+        </div>
 
-      <!-- Pay (customer, completed_unpaid) -->
-      <BaseButton
-        v-else-if="canPay"
-        @click="handlePayment"
-        class="w-full"
-      >
-        Pay now
-      </BaseButton>
+        <BaseButton v-if="props.perspective === 'provider'" @click="handlePayment" class="w-full">
+          Prompt Client For Payment
+        </BaseButton>
+        <div v-else class="rounded-card border border-brand/20 bg-brand/5 p-4 text-center">
+          <p class="text-sm font-semibold text-brand">Awaiting Payment Prompt</p>
+          <p class="mt-1 text-xs text-muted leading-relaxed">
+            Please wait for the provider to prompt you for payment. Once prompted, you will receive an M-Pesa STK PIN prompt on your phone.
+          </p>
+        </div>
+      </div>
+
+      <div v-else>
+        <!-- Total due -->
+        <div class="flex items-center justify-between rounded-card bg-surface px-4 py-3 mb-4">
+          <span class="text-sm text-muted">Total amount due</span>
+          <span class="text-lg font-extrabold text-ink">{{ totalDue }}</span>
+        </div>
+
+        <!-- Provider Complete Action -->
+        <BaseButton v-if="canComplete" @click="handleComplete" class="w-full">Complete Order</BaseButton>
+      </div>
     </div>
   </BaseModal>
 </template>

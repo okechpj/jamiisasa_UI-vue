@@ -5,6 +5,7 @@ import { ArrowLeft, Smartphone, Check, X, Loader2 } from 'lucide-vue-next'
 
 import { useBookingStore } from '@/stores/booking.store'
 import { useToast } from '@/composables/useToast'
+import { useAuthStore } from '@/stores/auth.store'
 import { getQuote } from '@/api/quote.api'
 import { initiateSTK, getPaymentStatus, verifyPayment } from '@/api/payment.api'
 import { extractError } from '@/lib/errors'
@@ -13,6 +14,8 @@ import PaymentCard from '@/components/payment/PaymentCard.vue'
 import BaseModal from '@/components/ui/BaseModal.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 
+import { getUser } from '@/api/auth.api'
+
 const props = defineProps({
   bookingId: { type: String, required: true },
 })
@@ -20,6 +23,7 @@ const props = defineProps({
 const router = useRouter()
 const store = useBookingStore()
 const toast = useToast()
+const auth = useAuthStore()
 
 const booking = ref(null)
 const quote = ref(null)
@@ -27,6 +31,7 @@ const payment = ref(null)
 const services = ref([])
 const loading = ref(true)
 const loadError = ref('')
+const customerEmail = ref('')
 
 const payState = ref('idle') // idle | sending | waiting | success | failed
 const payError = ref('')
@@ -57,46 +62,63 @@ const amount = computed(() => {
   return booking.value && booking.value.amount != null ? booking.value.amount : 0
 })
 
-const platformFee = computed(() => {
-  if (payment.value) return Number(payment.value.platform_fee_amount) || 0
-  return amount.value * 0.20 // Calculate 20% if payment not yet created
+const perspective = computed(() => {
+  if (!booking.value) return 'customer'
+  return auth.role === 'provider' && auth.userId === booking.value.providerId ? 'provider' : 'customer'
 })
 
-const providerEarnings = computed(() => {
-  if (payment.value) return Number(payment.value.provider_earnings) || 0
-  return amount.value - platformFee.value
+const canPay = computed(() => {
+  return (
+    booking.value &&
+    booking.value.acceptedQuoteId &&
+    booking.value.status === 'completed_unpaid'
+  )
 })
-
-const canPay = computed(
-  () => booking.value && booking.value.acceptedQuoteId && booking.value.status === 'completed_unpaid',
-)
 
 async function load() {
   loading.value = true
   loadError.value = ''
   try {
-    // Try customer bookings first
-    if (!store.myBookings.length) await store.fetchMyBookings()
-    booking.value = store.myBookings.find((b) => b.id === props.bookingId) || null
+    // Try provider bookings first (since only providers should access checkout)
+    if (!store.providerBookings.length) await store.fetchProviderBookings()
+    booking.value = store.providerBookings.find((b) => b.id === props.bookingId) || null
     
-    // If not found, try provider bookings
+    // Fallback to customer bookings just in case
     if (!booking.value) {
-      if (!store.providerBookings.length) await store.fetchProviderBookings()
-      booking.value = store.providerBookings.find((b) => b.id === props.bookingId) || null
+      if (!store.myBookings.length) await store.fetchMyBookings()
+      booking.value = store.myBookings.find((b) => b.id === props.bookingId) || null
     }
     
     if (!booking.value) {
       loadError.value = 'Booking not found.'
       return
     }
-    if (booking.value.status === 'paid') {
-      router.push({ name: 'booking-review', params: { bookingId: props.bookingId } })
+
+    // Customer should not have the checkout view; redirect them to bookings list
+    if (perspective.value === 'customer') {
+      router.replace({ name: 'my-bookings' })
       return
     }
+
+    if (booking.value.status === 'paid') {
+      router.push({ name: 'provider-bookings' })
+      return
+    }
+
     if (booking.value.acceptedQuoteId) {
       const d = await getQuote(booking.value.acceptedQuoteId)
       quote.value = d
       services.value = Array.isArray(d.services) ? d.services : []
+    }
+
+    // Fetch customer profile email
+    if (booking.value.customerId) {
+      try {
+        const u = await getUser(booking.value.customerId)
+        customerEmail.value = u.email || ''
+      } catch (err) {
+        console.error('Failed to fetch customer profile:', err)
+      }
     }
 
     // Attempt to resume polling if a payment is already pending/waiting
@@ -109,7 +131,7 @@ async function load() {
             payState.value = 'waiting'
             startPolling(p.paystack_ref)
           } else if (p.status === 'success') {
-            router.push({ name: 'booking-review', params: { bookingId: props.bookingId } })
+            router.push({ name: 'provider-bookings' })
             return
           } else if (p.status === 'failed') {
             payState.value = 'failed'
@@ -142,11 +164,11 @@ function startPolling(reference) {
       if (res.status === 'success') {
         payState.value = 'success'
         stopPolling()
-        toast.success('Payment successful! Booking confirmed.')
+        toast.success('Payment successful! Redirecting to dashboard.')
         
-        // Auto-redirect to Review Page after 1 second
+        // Auto-redirect to Provider Bookings after 1 second
         setTimeout(() => {
-          router.push({ name: 'booking-review', params: { bookingId: props.bookingId } })
+          router.push({ name: 'provider-bookings' })
         }, 1000)
       } else if (res.status === 'failed') {
         payState.value = 'failed'
@@ -224,14 +246,14 @@ onBeforeUnmount(stopPolling)
         </template>
       </div>
 
-      <PaymentCard 
-        v-else 
-        :amount="amount" 
-        :platform-fee="platformFee"
-        :provider-earnings="providerEarnings"
-        :state="payState" 
-        :error="payError" 
-        @pay="onPay" 
+      <PaymentCard
+        v-else
+        :amount="amount"
+        :state="payState"
+        :error="payError"
+        :perspective="perspective"
+        :customer-email="perspective === 'provider' ? customerEmail : (auth.user ? auth.user.email : '')"
+        @pay="onPay"
       />
     </div>
 
@@ -281,7 +303,7 @@ onBeforeUnmount(stopPolling)
           <!-- Redirecting status -->
           <div class="flex items-center gap-2 text-sm font-semibold text-muted">
             <Loader2 class="h-4 w-4 animate-spin text-muted" />
-            <span>Redirecting to Review Page...</span>
+            <span>Redirecting to Dashboard...</span>
           </div>
         </template>
 

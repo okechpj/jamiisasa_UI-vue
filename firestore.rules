@@ -17,22 +17,35 @@ service cloud.firestore {
 
     match /chat_rooms/{roomId} {
       allow read: if request.auth != null
-        && request.auth.uid in resource.data.participants;
+        && (
+          request.auth.uid == resource.data.customer_firebase_uid
+          || request.auth.uid == resource.data.provider_firebase_uid
+          || request.auth.uid in resource.data.participants
+        );
 
       // Rooms are created/owned by the backend only.
       allow write: if false;
 
       match /messages/{messageId} {
-        function roomParticipants() {
-          return get(/databases/$(database)/documents/chat_rooms/$(roomId)).data.participants;
+        function getRoomData() {
+          return get(/databases/$(database)/documents/chat_rooms/$(roomId)).data;
         }
 
         allow read: if request.auth != null
-          && request.auth.uid in roomParticipants();
+          && (
+            request.auth.uid == getRoomData().customer_firebase_uid
+            || request.auth.uid == getRoomData().provider_firebase_uid
+            || request.auth.uid in getRoomData().participants
+          );
 
         allow create: if request.auth != null
-          && request.auth.uid in roomParticipants()
-          && request.resource.data.sender_id == request.auth.uid
+          && (
+            (request.auth.uid == getRoomData().customer_firebase_uid && request.resource.data.sender_id == getRoomData().customer_id)
+            ||
+            (request.auth.uid == getRoomData().provider_firebase_uid && request.resource.data.sender_id == getRoomData().provider_id)
+            ||
+            (request.auth.uid in getRoomData().participants && request.resource.data.sender_id == request.auth.uid)
+          )
           && request.resource.data.type == 'text';
 
         // Messages are immutable from the client.

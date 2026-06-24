@@ -19,7 +19,8 @@ const status = computed(() => bookingStatus(props.booking.status))
 const canAccept = computed(() => props.perspective === 'provider' && props.booking.status === 'quoted')
 const canComplete = computed(() => props.perspective === 'provider' && props.booking.status === 'accepted')
 const canCancel = computed(
-  () => props.perspective === 'customer' && ['pending_quote', 'quoted', 'accepted'].includes(props.booking.status),
+  // Customers may cancel only before a quote is accepted/confirmed.
+  () => props.perspective === 'customer' && ['pending_quote', 'quoted'].includes(props.booking.status),
 )
 </script>
 

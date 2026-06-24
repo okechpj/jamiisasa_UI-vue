@@ -31,6 +31,17 @@ client.interceptors.request.use(async (config) => {
       console.error('Failed to get Firebase token', e)
     }
   }
+  // Avoid caching dynamic API responses in the browser and intermediate
+  // proxies. For API requests, prefer no-store so users always see fresh data.
+  try {
+    const url = config.url || ''
+    if (config.method === 'get' && (url.startsWith('/api/') || url.includes('/api/'))) {
+      config.headers['Cache-Control'] = 'no-store'
+      config.headers.Pragma = 'no-cache'
+    }
+  } catch (e) {
+    /* ignore */
+  }
   return config
 })
 

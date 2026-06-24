@@ -8,12 +8,17 @@ import client from './client'
 
 // POST /api/v1/payments/stk  { booking_id, phone_number, email }
 export async function initiateSTK(bookingId, phoneNumber, email) {
-  const { data } = await client.post('/api/v1/payments/stk', {
-    booking_id: bookingId,
-    phone_number: phoneNumber,
-    email: email,
-  })
-  return data
+  try {
+    const { data } = await client.post('/api/v1/payments/stk', {
+      booking_id: bookingId,
+      phone_number: phoneNumber,
+      email: email,
+    })
+    return data
+  } catch (error) {
+    console.error('STK Push error:', error.response?.data, error.message)
+    throw error
+  }
 }
 
 // GET /api/v1/payments/booking/:bookingId -> latest Payment (for polling)
